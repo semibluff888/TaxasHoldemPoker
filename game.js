@@ -238,10 +238,34 @@ function showAction(playerId, action) {
     setTimeout(() => {
         actionEl.classList.remove('visible');
     }, 2000);
+
+    // Log the action
+    const player = gameState.players[playerId];
+    const name = playerId === 0 ? 'You' : player.name;
+    showMessage(`${name}: ${action}`);
 }
 
 function showMessage(message) {
-    document.getElementById('game-message').textContent = message;
+    if (!message) return;
+    const history = document.getElementById('action-history');
+    if (history) {
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+
+        const now = new Date();
+        const time = now.toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric", second: "numeric" });
+        const phase = (gameState.phase === 'idle' ? 'Start' : gameState.phase).toUpperCase();
+
+        entry.innerHTML = `
+            <div class="log-time">
+                <span>${time}</span>
+                <span class="log-phase">${phase}</span>
+            </div>
+            <div class="log-content">${message}</div>
+        `;
+        history.appendChild(entry);
+        history.scrollTop = history.scrollHeight;
+    }
 }
 
 // Hand Evaluation
@@ -612,6 +636,10 @@ function resolvePlayerAction() {
 
 // Game Phases
 async function startNewGame() {
+    // Clear action history
+    const history = document.getElementById('action-history');
+    if (history) history.innerHTML = '';
+
     // Reset game state
     gameState.deck = createDeck();
     gameState.communityCards = [];
@@ -672,8 +700,6 @@ async function startNewGame() {
 
     // Deal hole cards with animation
     await dealHoleCards();
-
-    showMessage('Preflop - Your turn!');
 
     // Run betting rounds
     await runBettingRound();
