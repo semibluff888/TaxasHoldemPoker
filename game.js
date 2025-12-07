@@ -189,10 +189,24 @@ function updateUI() {
         dealerChip.classList.toggle('visible', gameState.dealerIndex === player.id);
 
         updatePlayerCards(player.id, true);
+        updateBetDisplay(player.id);
     }
 
     updateCommunityCards();
     updateControls();
+}
+
+function updateBetDisplay(playerId) {
+    const player = gameState.players[playerId];
+    const betDisplay = document.getElementById(`bet-${playerId}`);
+    const betAmount = betDisplay.querySelector('.bet-amount');
+
+    if (player.bet > 0) {
+        betAmount.textContent = `$${player.bet}`;
+        betDisplay.classList.add('visible');
+    } else {
+        betDisplay.classList.remove('visible');
+    }
 }
 
 function updateControls() {
@@ -580,6 +594,11 @@ function resetBets() {
     }
     gameState.currentBet = 0;
     gameState.minRaise = BIG_BLIND;
+
+    // Clear all bet displays
+    for (let i = 0; i < 4; i++) {
+        updateBetDisplay(i);
+    }
 }
 
 async function runBettingRound() {
