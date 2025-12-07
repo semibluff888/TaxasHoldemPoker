@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
     <div class="game-container">
         <!-- Game Header -->
@@ -21,23 +23,8 @@
         <!-- Poker Table -->
         <div class="poker-table">
             <!-- AI Players -->
-            <div class="player player-top" id="player-1">
-                <div class="player-info">
-                    <div class="player-avatar">🤖</div>
-                    <div class="player-details">
-                        <span class="player-name">AI Player 1</span>
-                        <span class="player-chips">$<span id="chips-1">1000</span></span>
-                    </div>
-                </div>
-                <div class="player-cards" id="cards-1">
-                    <div class="card card-back"></div>
-                    <div class="card card-back"></div>
-                </div>
-                <div class="player-action" id="action-1"></div>
-                <div class="dealer-chip" id="dealer-1">D</div>
-            </div>
-
-            <div class="player player-left" id="player-2">
+            <!-- AI Player 2 at top -->
+            <div class="player player-top" id="player-2">
                 <div class="player-info">
                     <div class="player-avatar">🤖</div>
                     <div class="player-details">
@@ -53,6 +40,24 @@
                 <div class="dealer-chip" id="dealer-2">D</div>
             </div>
 
+            <!-- AI Player 1 on the left (user's left, clockwise from user) -->
+            <div class="player player-left" id="player-1">
+                <div class="player-info">
+                    <div class="player-avatar">🤖</div>
+                    <div class="player-details">
+                        <span class="player-name">AI Player 1</span>
+                        <span class="player-chips">$<span id="chips-1">1000</span></span>
+                    </div>
+                </div>
+                <div class="player-cards" id="cards-1">
+                    <div class="card card-back"></div>
+                    <div class="card card-back"></div>
+                </div>
+                <div class="player-action" id="action-1"></div>
+                <div class="dealer-chip" id="dealer-1">D</div>
+            </div>
+
+            <!-- AI Player 3 on the right -->
             <div class="player player-right" id="player-3">
                 <div class="player-info">
                     <div class="player-avatar">🤖</div>
@@ -129,4 +134,5 @@
 
     <script src="game.js"></script>
 </body>
+
 </html>
