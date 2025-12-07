@@ -31,7 +31,9 @@ let gameState = {
     currentPlayerIndex: 0,
     phase: 'idle', // idle, preflop, flop, turn, river, showdown
     minRaise: BIG_BLIND,
-    lastRaiseAmount: 0
+    lastRaiseAmount: 0,
+    displayedCommunityCards: 0,
+    isFirstGame: true
 };
 
 // Initialize Players
@@ -68,24 +70,51 @@ function dealCard() {
     return gameState.deck.pop();
 }
 
-function dealHoleCards() {
-    for (let i = 0; i < 2; i++) {
-        for (const player of gameState.players) {
-            if (!player.folded && player.chips > 0) {
-                player.cards.push(dealCard());
-            }
+// Get dealing order (clockwise, starting after dealer, dealer last)
+function getDealingOrder() {
+    const order = [];
+    // Clockwise: 0 -> 1 -> 2 -> 3 -> 0
+    let currentIndex = (gameState.dealerIndex + 1) % 4;
+    for (let i = 0; i < 4; i++) {
+        const player = gameState.players[currentIndex];
+        if (!player.folded && player.chips > 0) {
+            order.push(currentIndex);
         }
+        currentIndex = (currentIndex + 1) % 4;
+    }
+    return order;
+}
+
+// Deal hole cards with animation (async)
+async function dealHoleCards() {
+    const dealingOrder = getDealingOrder();
+
+    // Deal first card to each player
+    for (const playerId of dealingOrder) {
+        const player = gameState.players[playerId];
+        player.cards.push(dealCard());
+        updatePlayerCardsAnimated(playerId);
+        await delay(200);
+    }
+
+    // Deal second card to each player
+    for (const playerId of dealingOrder) {
+        const player = gameState.players[playerId];
+        player.cards.push(dealCard());
+        updatePlayerCardsAnimated(playerId);
+        await delay(200);
     }
 }
 
 // Card Display
-function getCardHTML(card, isHidden = false) {
+function getCardHTML(card, isHidden = false, animate = true) {
+    const animClass = animate ? ' dealing' : '';
     if (isHidden) {
-        return '<div class="card card-back dealing"></div>';
+        return `<div class="card card-back${animClass}"></div>`;
     }
     const isRed = card.suit === '♥' || card.suit === '♦';
     return `
-        <div class="card card-face ${isRed ? 'red' : 'black'} dealing">
+        <div class="card card-face ${isRed ? 'red' : 'black'}${animClass}">
             <span class="card-value">${card.value}</span>
             <span class="card-suit">${card.suit}</span>
         </div>
@@ -105,7 +134,22 @@ function updatePlayerCards(playerId, isHidden = false) {
     }
 
     const hidden = isHidden && player.isAI && gameState.phase !== 'showdown';
-    cardsContainer.innerHTML = player.cards.map(card => getCardHTML(card, hidden)).join('');
+    cardsContainer.innerHTML = player.cards.map(card => getCardHTML(card, hidden, false)).join('');
+}
+
+// Update player cards with animation for the newly dealt card
+function updatePlayerCardsAnimated(playerId) {
+    const player = gameState.players[playerId];
+    const cardsContainer = document.getElementById(`cards-${playerId}`);
+    const hidden = player.isAI;
+
+    let html = '';
+    for (let i = 0; i < player.cards.length; i++) {
+        // Only animate the last (newly dealt) card
+        const shouldAnimate = (i === player.cards.length - 1);
+        html += getCardHTML(player.cards[i], hidden, shouldAnimate);
+    }
+    cardsContainer.innerHTML = html;
 }
 
 function updateCommunityCards() {
@@ -114,13 +158,17 @@ function updateCommunityCards() {
 
     for (let i = 0; i < 5; i++) {
         if (i < gameState.communityCards.length) {
-            html += getCardHTML(gameState.communityCards[i]);
+            // Only animate newly dealt cards
+            const shouldAnimate = i >= gameState.displayedCommunityCards;
+            html += getCardHTML(gameState.communityCards[i], false, shouldAnimate);
         } else {
             html += '<div class="card card-placeholder"></div>';
         }
     }
 
     container.innerHTML = html;
+    // Update the count of displayed cards
+    gameState.displayedCommunityCards = gameState.communityCards.length;
 }
 
 // UI Updates
@@ -472,6 +520,7 @@ function evaluateAIHand(player) {
 function nextPlayer() {
     let attempts = 0;
     do {
+        // Clockwise direction: 0 -> 1 -> 2 -> 3 -> 0
         gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % 4;
         attempts++;
     } while (
@@ -566,6 +615,7 @@ async function startNewGame() {
     // Reset game state
     gameState.deck = createDeck();
     gameState.communityCards = [];
+    gameState.displayedCommunityCards = 0;
     gameState.pot = 0;
     gameState.currentBet = 0;
     gameState.phase = 'preflop';
@@ -595,10 +645,17 @@ async function startNewGame() {
         return;
     }
 
-    // Move dealer
-    do {
-        gameState.dealerIndex = (gameState.dealerIndex + 1) % 4;
-    } while (gameState.players[gameState.dealerIndex].chips <= 0);
+    // Set dealer position
+    if (gameState.isFirstGame) {
+        // Random dealer position for first game
+        gameState.dealerIndex = Math.floor(Math.random() * 4);
+        gameState.isFirstGame = false;
+    } else {
+        // Move dealer clockwise for subsequent games
+        do {
+            gameState.dealerIndex = (gameState.dealerIndex + 1) % 4;
+        } while (gameState.players[gameState.dealerIndex].chips <= 0);
+    }
 
     // Post blinds
     const sbIndex = getNextActivePlayer(gameState.dealerIndex);
@@ -610,9 +667,11 @@ async function startNewGame() {
     gameState.currentBet = BIG_BLIND;
     gameState.currentPlayerIndex = getNextActivePlayer(bbIndex);
 
-    // Deal hole cards
-    dealHoleCards();
+    // Update UI before dealing to show blinds
     updateUI();
+
+    // Deal hole cards with animation
+    await dealHoleCards();
 
     showMessage('Preflop - Your turn!');
 
@@ -635,6 +694,7 @@ async function startNewGame() {
 }
 
 function getNextActivePlayer(fromIndex) {
+    // Clockwise direction: 0 -> 1 -> 2 -> 3 -> 0
     let index = (fromIndex + 1) % 4;
     while (gameState.players[index].folded || gameState.players[index].chips <= 0) {
         index = (index + 1) % 4;
