@@ -360,6 +360,70 @@ body {
     opacity: 1;
 }
 
+/* ===== Player Bet Display ===== */
+.player-bet {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--accent-gold);
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--accent-gold);
+    box-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.player-bet.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.bet-chip {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+
+.bet-amount {
+    white-space: nowrap;
+}
+
+/* Position bet displays between player and table center */
+.player-top .player-bet {
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 80px;
+}
+
+.player-bottom .player-bet {
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 50px;
+}
+
+.player-left .player-bet {
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 50px;
+}
+
+.player-right .player-bet {
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-right: 50px;
+}
+
 /* ===== Controls ===== */
 .controls {
     display: flex;
