@@ -354,6 +354,11 @@ function evaluateFiveCards(cards) {
 
     let rank, name, score;
 
+    // Helper to get kickers (cards not part of the main hand)
+    function getKickers(excludeValues) {
+        return values.filter(v => !excludeValues.includes(v));
+    }
+
     if (isFlush && isStraight && values[0] === 14 && values[1] === 13) {
         rank = 10; name = 'Royal Flush';
         score = 10000000;
@@ -363,32 +368,44 @@ function evaluateFiveCards(cards) {
     } else if (counts[0] === 4) {
         rank = 8; name = 'Four of a Kind';
         const quadValue = parseInt(Object.keys(valueCounts).find(k => valueCounts[k] === 4));
-        score = 8000000 + quadValue * 100;
+        const kicker = getKickers([quadValue])[0];
+        // Score: quad value * large multiplier + kicker
+        score = 8000000 + quadValue * 100 + kicker;
     } else if (counts[0] === 3 && counts[1] === 2) {
         rank = 7; name = 'Full House';
         const tripValue = parseInt(Object.keys(valueCounts).find(k => valueCounts[k] === 3));
         const pairValue = parseInt(Object.keys(valueCounts).find(k => valueCounts[k] === 2));
+        // No kickers in full house - all 5 cards used
         score = 7000000 + tripValue * 100 + pairValue;
     } else if (isFlush) {
         rank = 6; name = 'Flush';
+        // All 5 cards matter for flush comparison
         score = 6000000 + values[0] * 10000 + values[1] * 1000 + values[2] * 100 + values[3] * 10 + values[4];
     } else if (isStraight || isAceLowStraight) {
         rank = 5; name = 'Straight';
+        // Only high card matters for straight
         score = 5000000 + (isAceLowStraight ? 5 : values[0]);
     } else if (counts[0] === 3) {
         rank = 4; name = 'Three of a Kind';
         const tripValue = parseInt(Object.keys(valueCounts).find(k => valueCounts[k] === 3));
-        score = 4000000 + tripValue * 100;
+        const kickers = getKickers([tripValue]);
+        // Score: trip value + 2 kickers
+        score = 4000000 + tripValue * 10000 + kickers[0] * 100 + kickers[1];
     } else if (counts[0] === 2 && counts[1] === 2) {
         rank = 3; name = 'Two Pair';
         const pairs = Object.keys(valueCounts).filter(k => valueCounts[k] === 2).map(Number).sort((a, b) => b - a);
-        score = 3000000 + pairs[0] * 1000 + pairs[1] * 10;
+        const kicker = getKickers(pairs)[0];
+        // Score: high pair + low pair + kicker
+        score = 3000000 + pairs[0] * 10000 + pairs[1] * 100 + kicker;
     } else if (counts[0] === 2) {
         rank = 2; name = 'One Pair';
         const pairValue = parseInt(Object.keys(valueCounts).find(k => valueCounts[k] === 2));
-        score = 2000000 + pairValue * 10000;
+        const kickers = getKickers([pairValue]);
+        // Score: pair value + 3 kickers
+        score = 2000000 + pairValue * 1000000 + kickers[0] * 10000 + kickers[1] * 100 + kickers[2];
     } else {
         rank = 1; name = 'High Card';
+        // All 5 cards matter
         score = 1000000 + values[0] * 10000 + values[1] * 1000 + values[2] * 100 + values[3] * 10 + values[4];
     }
 
