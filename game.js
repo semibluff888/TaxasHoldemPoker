@@ -39,10 +39,10 @@ let gameState = {
 // Initialize Players
 function initPlayers() {
     gameState.players = [
-        { id: 0, name: 'You', chips: STARTING_CHIPS, cards: [], bet: 0, folded: false, isAI: false, allIn: false },
-        { id: 1, name: 'AI Player 1', chips: STARTING_CHIPS, cards: [], bet: 0, folded: false, isAI: true, allIn: false },
-        { id: 2, name: 'AI Player 2', chips: STARTING_CHIPS, cards: [], bet: 0, folded: false, isAI: true, allIn: false },
-        { id: 3, name: 'AI Player 3', chips: STARTING_CHIPS, cards: [], bet: 0, folded: false, isAI: true, allIn: false }
+        { id: 0, name: 'You', chips: STARTING_CHIPS, cards: [], bet: 0, totalContribution: 0, folded: false, isAI: false, allIn: false },
+        { id: 1, name: 'AI Player 1', chips: STARTING_CHIPS, cards: [], bet: 0, totalContribution: 0, folded: false, isAI: true, allIn: false },
+        { id: 2, name: 'AI Player 2', chips: STARTING_CHIPS, cards: [], bet: 0, totalContribution: 0, folded: false, isAI: true, allIn: false },
+        { id: 3, name: 'AI Player 3', chips: STARTING_CHIPS, cards: [], bet: 0, totalContribution: 0, folded: false, isAI: true, allIn: false }
     ];
 }
 
@@ -438,6 +438,7 @@ function playerCall(playerId) {
 
     player.chips -= callAmount;
     player.bet += callAmount;
+    player.totalContribution += callAmount;
     gameState.pot += callAmount;
 
     if (player.chips === 0) {
@@ -457,6 +458,7 @@ function playerRaise(playerId, totalBet) {
 
     player.chips -= raiseAmount;
     player.bet = totalBet;
+    player.totalContribution += raiseAmount;
     gameState.pot += raiseAmount;
     gameState.currentBet = totalBet;
     gameState.minRaise = Math.max(gameState.minRaise, actualRaise);
@@ -484,6 +486,7 @@ function playerAllIn(playerId) {
 
     player.chips = 0;
     player.bet = newBet;
+    player.totalContribution += allInAmount;
     player.allIn = true;
     gameState.pot += allInAmount;
 
@@ -779,6 +782,7 @@ async function startNewGame(randomizeDealer = false) {
     for (const player of gameState.players) {
         player.cards = [];
         player.bet = 0;
+        player.totalContribution = 0;
         player.folded = false;
         player.allIn = false;
 
@@ -863,6 +867,7 @@ function postBlind(playerIndex, amount) {
 
     player.chips -= blindAmount;
     player.bet = blindAmount;
+    player.totalContribution += blindAmount;
     gameState.pot += blindAmount;
 
     if (player.chips === 0) {
@@ -953,45 +958,108 @@ async function showdown() {
 
         showMessage(`${winner.name} wins $${winAmount} - Everyone folded!`);
     } else {
-        // Evaluate hands
-        let bestScore = -1;
-        let winners = [];
-
+        // Evaluate all hands first
         for (const player of playersInHand) {
             const allCards = [...player.cards, ...gameState.communityCards];
             const hand = evaluateHand(allCards);
             player.handResult = hand;
-
-            if (hand.score > bestScore) {
-                bestScore = hand.score;
-                winners = [player];
-            } else if (hand.score === bestScore) {
-                winners.push(player);
-            }
         }
 
-        // Calculate win amounts
-        const winAmount = Math.floor(gameState.pot / winners.length);
-        const handName = winners[0].handResult.name;
+        // Calculate pots (main pot and side pots)
+        const pots = calculatePots(playersInHand);
+
+        let allWinners = [];
+        let firstHandName = '';
+        let totalWinAmounts = {};
+
+        // Award each pot to its winner(s)
+        for (let i = 0; i < pots.length; i++) {
+            const pot = pots[i];
+            const potName = i === 0 ? 'Main Pot' : `Side Pot ${i}`;
+
+            // Find best hand among eligible players for this pot
+            let bestScore = -1;
+            let potWinners = [];
+
+            for (const player of pot.eligiblePlayers) {
+                if (player.handResult.score > bestScore) {
+                    bestScore = player.handResult.score;
+                    potWinners = [player];
+                } else if (player.handResult.score === bestScore) {
+                    potWinners.push(player);
+                }
+            }
+
+            const winAmount = Math.floor(pot.amount / potWinners.length);
+            const handName = potWinners[0].handResult.name;
+
+            if (i === 0) firstHandName = handName;
+
+            // Track all winners and their total winnings
+            for (const winner of potWinners) {
+                if (!allWinners.includes(winner)) {
+                    allWinners.push(winner);
+                }
+                totalWinAmounts[winner.id] = (totalWinAmounts[winner.id] || 0) + winAmount;
+                winner.chips += winAmount;
+            }
+
+            // Log each pot award
+            const winnerNames = potWinners.map(w => w.name).join(' & ');
+            showMessage(`${potName}: ${winnerNames} wins $${winAmount} with ${handName}`);
+        }
 
         // Log showdown details to action history
-        logShowdownDetails(playersInHand, winners, handName, winAmount);
+        const totalWin = Object.values(totalWinAmounts).reduce((a, b) => a + b, 0) / allWinners.length;
+        logShowdownDetails(playersInHand, allWinners, firstHandName, Math.floor(totalWin));
 
-        // Highlight winners and their cards
-        highlightWinners(winners, handName);
+        // Highlight all winners
+        highlightWinners(allWinners, firstHandName);
 
-        // Animate pot to winners
-        const winAmounts = winners.map(() => winAmount);
-        await animatePotToWinners(winners, winAmounts);
-
-        // Update chips after animation
-        for (const winner of winners) {
-            winner.chips += winAmount;
-        }
+        // Animate pot to all winners (simplified - just show total)
+        await animatePotToWinners(allWinners, allWinners.map(w => totalWinAmounts[w.id]));
     }
 
     // Finalize showdown - update chips display and start next game
     await finalizeShowdown();
+}
+
+// Calculate main pot and side pots based on player contributions
+function calculatePots(playersInHand) {
+    // Get all non-folded players with their contributions
+    const playerContributions = playersInHand.map(p => ({
+        player: p,
+        contribution: p.totalContribution
+    })).sort((a, b) => a.contribution - b.contribution);
+
+    const pots = [];
+    let previousLevel = 0;
+
+    for (let i = 0; i < playerContributions.length; i++) {
+        const currentLevel = playerContributions[i].contribution;
+
+        if (currentLevel > previousLevel) {
+            // Calculate pot amount at this level
+            const levelContribution = currentLevel - previousLevel;
+            const eligibleCount = playerContributions.length - i;
+            const potAmount = levelContribution * eligibleCount;
+
+            // Get eligible players for this pot (all players at or above this contribution level)
+            const eligiblePlayers = playerContributions
+                .slice(i)
+                .map(pc => pc.player);
+
+            pots.push({
+                amount: potAmount,
+                eligiblePlayers: eligiblePlayers,
+                level: currentLevel
+            });
+
+            previousLevel = currentLevel;
+        }
+    }
+
+    return pots;
 }
 
 // Helper function to format cards as text string
