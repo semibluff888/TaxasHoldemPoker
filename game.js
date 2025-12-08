@@ -213,17 +213,19 @@ function updateControls() {
     const controls = document.getElementById('controls');
     const player = gameState.players[0];
 
-    if (gameState.phase === 'idle' || gameState.phase === 'showdown' || player.folded || player.allIn) {
-        controls.classList.add('hidden');
-        return;
-    }
-
-    if (gameState.currentPlayerIndex !== 0) {
-        controls.classList.add('hidden');
-        return;
-    }
-
+    // Always show controls (remove hidden class)
     controls.classList.remove('hidden');
+
+    // Determine if controls should be active (user's turn and can act)
+    const isUserTurn = gameState.currentPlayerIndex === 0;
+    const canAct = gameState.phase !== 'idle' &&
+        gameState.phase !== 'showdown' &&
+        !player.folded &&
+        !player.allIn;
+    const isActive = isUserTurn && canAct;
+
+    // Toggle disabled state on controls container
+    controls.classList.toggle('disabled', !isActive);
 
     const callAmount = gameState.currentBet - player.bet;
     const canCheck = callAmount === 0;
@@ -240,8 +242,17 @@ function updateControls() {
     slider.value = minRaise;
     document.getElementById('raise-amount').textContent = minRaise;
 
-    // Disable raise if can't afford
-    document.getElementById('btn-raise').disabled = player.chips <= callAmount;
+    // Disable all buttons if not active, otherwise check individual conditions
+    const allButtons = controls.querySelectorAll('.btn');
+    allButtons.forEach(btn => btn.disabled = !isActive);
+
+    // Special case: disable raise if can't afford (even when active)
+    if (isActive) {
+        document.getElementById('btn-raise').disabled = player.chips <= callAmount;
+    }
+
+    // Disable slider when not active
+    slider.disabled = !isActive;
 }
 
 function showAction(playerId, action) {
@@ -657,13 +668,17 @@ function waitForPlayerAction() {
 
 function resolvePlayerAction() {
     if (playerActionResolver) {
+        // Immediately disable controls after user takes action
+        const controls = document.getElementById('controls');
+        controls.classList.add('disabled');
+
         playerActionResolver();
         playerActionResolver = null;
     }
 }
 
 // Game Phases
-async function startNewGame() {
+async function startNewGame(randomizeDealer = false) {
     // Clear action history
     const history = document.getElementById('action-history');
     if (history) history.innerHTML = '';
@@ -705,12 +720,15 @@ async function startNewGame() {
     }
 
     // Set dealer position
-    if (gameState.isFirstGame) {
-        // Random dealer position for first game
-        gameState.dealerIndex = Math.floor(Math.random() * 4);
-        gameState.isFirstGame = false;
+    if (randomizeDealer) {
+        // Random dealer position for fresh game
+        const eligibleDealers = gameState.players.map((p, i) => ({ player: p, index: i })).filter(p => p.player.chips > 0);
+        if (eligibleDealers.length > 0) {
+            const randomPlayerIndex = Math.floor(Math.random() * eligibleDealers.length);
+            gameState.dealerIndex = eligibleDealers[randomPlayerIndex].index;
+        }
     } else {
-        // Move dealer clockwise for subsequent games
+        // Move dealer clockwise for next round
         do {
             gameState.dealerIndex = (gameState.dealerIndex + 1) % 4;
         } while (gameState.players[gameState.dealerIndex].chips <= 0);
@@ -1070,12 +1088,20 @@ document.getElementById('raise-slider').addEventListener('input', (e) => {
 
 document.getElementById('btn-new-game').addEventListener('click', () => {
     document.getElementById('winner-popup').classList.remove('visible');
-    startNewGame();
+    // Reset all players' chips to initial amount
+    for (const player of gameState.players) {
+        player.chips = STARTING_CHIPS;
+    }
+    startNewGame(true); // true = randomize dealer position
 });
 
 document.getElementById('btn-continue').addEventListener('click', () => {
     document.getElementById('winner-popup').classList.remove('visible');
-    startNewGame();
+    // Reset all players' chips to initial amount
+    for (const player of gameState.players) {
+        player.chips = STARTING_CHIPS;
+    }
+    startNewGame(true); // true = randomize dealer position
 });
 
 // Initialize
