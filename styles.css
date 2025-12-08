@@ -639,6 +639,40 @@ body {
     line-height: 1.4;
 }
 
+/* Showdown Details Styling */
+.showdown-details {
+    border-left: 3px solid var(--accent-gold);
+    background: rgba(255, 215, 0, 0.1);
+}
+
+.showdown-section {
+    margin: 6px 0;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.showdown-section:last-child {
+    border-bottom: none;
+}
+
+.player-hand {
+    padding: 2px 0 2px 10px;
+    font-size: 0.8rem;
+}
+
+.winner-hand {
+    color: var(--accent-gold);
+    font-weight: 600;
+}
+
+.winner-section {
+    color: var(--accent-gold);
+    background: rgba(255, 215, 0, 0.15);
+    padding: 8px;
+    border-radius: 6px;
+    margin-top: 8px;
+}
+
 @media (max-width: 1100px) {
     .game-layout {
         flex-direction: column;
@@ -747,8 +781,8 @@ body {
     border: 3px solid var(--accent-gold) !important;
     box-shadow:
         0 0 20px rgba(255, 215, 0, 0.7),
-        0 0 40px rgba(255, 215, 0, 0.4);
-    transform: translateY(-8px) scale(1.05);
+        0 0 40px rgba(255, 215, 0, 0.4) !important;
+    transform: translateY(-8px) scale(1.05) !important;
     z-index: 10;
 }
 

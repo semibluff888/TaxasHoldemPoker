@@ -858,12 +858,9 @@ async function showdown() {
     await delay(500);
 
     if (playersInHand.length === 1) {
-        // Everyone folded
+        // Everyone folded - no highlight needed
         const winner = playersInHand[0];
         const winAmount = gameState.pot;
-
-        // Highlight winner (no cards to highlight since others folded)
-        highlightWinners([winner], 'Everyone Folded');
 
         // Animate pot to winner
         await animatePotToWinners([winner], [winAmount]);
@@ -894,6 +891,9 @@ async function showdown() {
         const winAmount = Math.floor(gameState.pot / winners.length);
         const handName = winners[0].handResult.name;
 
+        // Log showdown details to action history
+        logShowdownDetails(playersInHand, winners, handName, winAmount);
+
         // Highlight winners and their cards
         highlightWinners(winners, handName);
 
@@ -905,12 +905,70 @@ async function showdown() {
         for (const winner of winners) {
             winner.chips += winAmount;
         }
-
-        const winnerNames = winners.map(w => w.name).join(' & ');
-        const splitText = winners.length > 1 ? ' (Split Pot)' : '';
-        showMessage(`${winnerNames} wins $${winAmount} with ${handName}!${splitText}`);
     }
 
+    // Finalize showdown - update chips display and start next game
+    await finalizeShowdown();
+}
+
+// Helper function to format cards as text string
+function formatCardsText(cards) {
+    return cards.map(card => `${card.value}${card.suit}`).join(' ');
+}
+
+// Log detailed showdown information to action history
+function logShowdownDetails(playersInHand, winners, handName, winAmount) {
+    const history = document.getElementById('action-history');
+    if (!history) return;
+
+    const entry = document.createElement('div');
+    entry.className = 'log-entry showdown-details';
+
+    const now = new Date();
+    const time = now.toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric", second: "numeric" });
+
+    // Build showdown details HTML
+    let detailsHTML = `
+        <div class="log-time">
+            <span>${time}</span>
+            <span class="log-phase">SHOWDOWN</span>
+        </div>
+        <div class="log-content">
+            <div class="showdown-section">
+                <strong>Community Cards:</strong> ${formatCardsText(gameState.communityCards)}
+            </div>
+            <div class="showdown-section">
+                <strong>Players' Hole Cards:</strong>
+    `;
+
+    // Add each player's hole cards
+    for (const player of playersInHand) {
+        const isWinner = winners.some(w => w.id === player.id);
+        const winnerMark = isWinner ? ' ⭐' : '';
+        detailsHTML += `
+            <div class="player-hand ${isWinner ? 'winner-hand' : ''}">
+                ${player.name}${winnerMark}: ${formatCardsText(player.cards)}
+            </div>
+        `;
+    }
+
+    detailsHTML += `
+            </div>
+            <div class="showdown-section winner-section">
+                <strong>🏆 Winner:</strong> ${winners.map(w => w.name).join(' & ')}
+                <br><strong>Winning Hand:</strong> ${handName}
+                <br><strong>Prize:</strong> $${winAmount}${winners.length > 1 ? ' each (Split Pot)' : ''}
+            </div>
+        </div>
+    `;
+
+    entry.innerHTML = detailsHTML;
+    history.appendChild(entry);
+    history.scrollTop = history.scrollHeight;
+}
+
+// Update chips display only after showdown (called within showdown)
+async function finalizeShowdown() {
     // Update chips display only (don't call updateUI which would rebuild cards and remove highlights)
     for (const player of gameState.players) {
         document.getElementById(`chips-${player.id}`).textContent = player.chips;
