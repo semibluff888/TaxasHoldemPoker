@@ -289,14 +289,15 @@ function getCardValue(value) {
 }
 
 function evaluateHand(cards) {
-    if (cards.length < 5) return { rank: 0, name: 'Incomplete', highCards: [] };
+    if (cards.length < 5) return { rank: 0, name: 'Incomplete', highCards: [], bestCards: [] };
 
     // Get all 5-card combinations
     const combinations = getCombinations(cards, 5);
-    let bestHand = { rank: 0, name: 'High Card', highCards: [], score: 0 };
+    let bestHand = { rank: 0, name: 'High Card', highCards: [], score: 0, bestCards: [] };
 
     for (const combo of combinations) {
         const hand = evaluateFiveCards(combo);
+        hand.bestCards = combo; // Store the actual 5-card combo
         if (hand.score > bestHand.score) {
             bestHand = hand;
         }
@@ -667,6 +668,9 @@ async function startNewGame() {
     const history = document.getElementById('action-history');
     if (history) history.innerHTML = '';
 
+    // Clear any previous winner highlights
+    clearWinnerHighlights();
+
     // Reset game state
     gameState.deck = createDeck();
     gameState.communityCards = [];
@@ -833,12 +837,23 @@ async function showdown() {
         updatePlayerCards(player.id, false);
     }
 
+    await delay(500);
+
     if (playersInHand.length === 1) {
         // Everyone folded
         const winner = playersInHand[0];
-        winner.chips += gameState.pot;
+        const winAmount = gameState.pot;
 
-        showWinner(winner.name, 'Everyone folded!', gameState.pot);
+        // Highlight winner (no cards to highlight since others folded)
+        highlightWinners([winner], 'Everyone Folded');
+
+        // Animate pot to winner
+        await animatePotToWinners([winner], [winAmount]);
+
+        // Update chips after animation
+        winner.chips += winAmount;
+
+        showMessage(`${winner.name} wins $${winAmount} - Everyone folded!`);
     } else {
         // Evaluate hands
         let bestScore = -1;
@@ -857,26 +872,169 @@ async function showdown() {
             }
         }
 
-        // Distribute pot
+        // Calculate win amounts
         const winAmount = Math.floor(gameState.pot / winners.length);
+        const handName = winners[0].handResult.name;
+
+        // Highlight winners and their cards
+        highlightWinners(winners, handName);
+
+        // Animate pot to winners
+        const winAmounts = winners.map(() => winAmount);
+        await animatePotToWinners(winners, winAmounts);
+
+        // Update chips after animation
         for (const winner of winners) {
             winner.chips += winAmount;
         }
 
         const winnerNames = winners.map(w => w.name).join(' & ');
-        const handName = winners[0].handResult.name;
-
-        showWinner(winnerNames, handName, winAmount);
+        const splitText = winners.length > 1 ? ' (Split Pot)' : '';
+        showMessage(`${winnerNames} wins $${winAmount} with ${handName}!${splitText}`);
     }
 
-    updateUI();
+    // Update chips display only (don't call updateUI which would rebuild cards and remove highlights)
+    for (const player of gameState.players) {
+        document.getElementById(`chips-${player.id}`).textContent = player.chips;
+    }
+
+    // Wait 5 seconds to let player see the winner highlights, then start next game
+    await delay(5000);
+    startNewGame();
 }
 
-function showWinner(name, handName, amount) {
-    const popup = document.getElementById('winner-popup');
-    document.getElementById('winner-title').textContent = `${name} Wins!`;
-    document.getElementById('winner-details').textContent = `${handName} - Won $${amount}`;
-    popup.classList.add('visible');
+// Highlight winning players and their winning cards
+function highlightWinners(winners, handName) {
+    for (const winner of winners) {
+        const playerEl = document.getElementById(`player-${winner.id}`);
+        playerEl.classList.add('winner');
+
+        // Add hand rank badge
+        const badge = document.createElement('div');
+        badge.className = 'hand-rank-badge';
+        badge.textContent = handName;
+        badge.id = `hand-badge-${winner.id}`;
+        playerEl.appendChild(badge);
+
+        // Highlight winning cards (only if we have a real hand result)
+        if (winner.handResult && winner.handResult.bestCards && winner.handResult.bestCards.length > 0) {
+            highlightWinningCards(winner);
+        }
+    }
+}
+
+// Highlight the 5 cards that make up the winning hand
+function highlightWinningCards(winner) {
+    const bestCards = winner.handResult.bestCards;
+
+    // Get player's hole cards
+    const playerCardsContainer = document.getElementById(`cards-${winner.id}`);
+    const playerCardEls = playerCardsContainer.querySelectorAll('.card');
+
+    // Get community cards
+    const communityContainer = document.getElementById('community-cards');
+    const communityCardEls = communityContainer.querySelectorAll('.card');
+
+    // Check each of the best 5 cards and highlight matching ones
+    for (const bestCard of bestCards) {
+        // Check player's hole cards
+        for (let i = 0; i < winner.cards.length; i++) {
+            if (winner.cards[i].suit === bestCard.suit && winner.cards[i].value === bestCard.value) {
+                if (playerCardEls[i]) {
+                    playerCardEls[i].classList.add('winning-card');
+                }
+            }
+        }
+
+        // Check community cards
+        for (let i = 0; i < gameState.communityCards.length; i++) {
+            if (gameState.communityCards[i].suit === bestCard.suit &&
+                gameState.communityCards[i].value === bestCard.value) {
+                if (communityCardEls[i]) {
+                    communityCardEls[i].classList.add('winning-card');
+                }
+            }
+        }
+    }
+}
+
+// Animate pot moving to winners
+async function animatePotToWinners(winners, winAmounts) {
+    const potDisplay = document.querySelector('.pot-display');
+    const potRect = potDisplay.getBoundingClientRect();
+
+    for (let i = 0; i < winners.length; i++) {
+        const winner = winners[i];
+        const winAmount = winAmounts[i];
+
+        // Get winner's position
+        const playerEl = document.getElementById(`player-${winner.id}`);
+        const playerRect = playerEl.getBoundingClientRect();
+
+        // Create pot clone
+        const potClone = document.createElement('div');
+        potClone.className = 'pot-clone';
+        potClone.innerHTML = `
+            <span class="pot-label">${winners.length > 1 ? 'SPLIT' : 'POT'}</span>
+            <span class="pot-amount">$${winAmount}</span>
+        `;
+
+        // Position at pot's location
+        potClone.style.left = `${potRect.left}px`;
+        potClone.style.top = `${potRect.top}px`;
+
+        document.body.appendChild(potClone);
+
+        // Calculate target position (center of player element)
+        const targetX = playerRect.left + playerRect.width / 2 - potRect.width / 2;
+        const targetY = playerRect.top + playerRect.height / 2 - potRect.height / 2;
+
+        // Animate to player
+        potClone.style.transition = 'all 0.6s ease-out';
+
+        // Force reflow
+        potClone.offsetHeight;
+
+        potClone.style.left = `${targetX}px`;
+        potClone.style.top = `${targetY}px`;
+
+        // Wait for animation
+        await delay(600);
+
+        // Fade out
+        potClone.classList.add('animating');
+        await delay(400);
+
+        // Remove clone
+        potClone.remove();
+
+        // Small delay between multiple winners
+        if (i < winners.length - 1) {
+            await delay(200);
+        }
+    }
+
+    // Clear pot display
+    gameState.pot = 0;
+    document.getElementById('pot-amount').textContent = '$0';
+}
+
+// Clear all winner highlights (call at start of new game)
+function clearWinnerHighlights() {
+    // Remove winner class from all players
+    document.querySelectorAll('.player.winner').forEach(el => {
+        el.classList.remove('winner');
+    });
+
+    // Remove hand rank badges
+    document.querySelectorAll('.hand-rank-badge').forEach(el => {
+        el.remove();
+    });
+
+    // Remove winning card highlights
+    document.querySelectorAll('.card.winning-card').forEach(el => {
+        el.classList.remove('winning-card');
+    });
 }
 
 // Event Listeners

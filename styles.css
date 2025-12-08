@@ -708,6 +708,147 @@ body {
     color: var(--primary);
 }
 
+/* ===== Winner Highlights ===== */
+.player.winner .player-info {
+    border-color: var(--accent-gold);
+    box-shadow:
+        0 0 30px rgba(255, 215, 0, 0.6),
+        0 0 60px rgba(255, 215, 0, 0.4),
+        0 0 90px rgba(255, 215, 0, 0.2);
+    animation: winnerPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes winnerPulse {
+
+    0%,
+    100% {
+        box-shadow:
+            0 0 30px rgba(255, 215, 0, 0.6),
+            0 0 60px rgba(255, 215, 0, 0.4);
+    }
+
+    50% {
+        box-shadow:
+            0 0 40px rgba(255, 215, 0, 0.8),
+            0 0 80px rgba(255, 215, 0, 0.5);
+    }
+}
+
+.card.winning-card {
+    border: 3px solid var(--accent-gold) !important;
+    box-shadow:
+        0 0 20px rgba(255, 215, 0, 0.7),
+        0 0 40px rgba(255, 215, 0, 0.4);
+    transform: translateY(-8px) scale(1.05);
+    z-index: 10;
+}
+
+/* ===== Hand Rank Badge ===== */
+.hand-rank-badge {
+    position: absolute;
+    background: linear-gradient(145deg, var(--accent-gold) 0%, #daa520 100%);
+    color: var(--primary);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.5);
+    animation: badgePop 0.5s ease;
+    z-index: 20;
+}
+
+@keyframes badgePop {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+
+    50% {
+        transform: scale(1.2);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Position hand rank badge based on player position */
+.player-top .hand-rank-badge {
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.player-left .hand-rank-badge {
+    left: 100%;
+    top: 0;
+    margin-left: 10px;
+}
+
+.player-right .hand-rank-badge {
+    right: 100%;
+    top: 0;
+    margin-right: 10px;
+}
+
+.player-bottom .hand-rank-badge {
+    bottom: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* ===== Pot Animation ===== */
+.pot-clone {
+    position: fixed;
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: 15px;
+    padding: 10px 25px;
+    z-index: 1000;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.pot-clone .pot-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.pot-clone .pot-amount {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--accent-gold);
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+@keyframes potToWinner {
+    0% {
+        opacity: 1;
+    }
+
+    80% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+}
+
+.pot-clone.animating {
+    animation: potToWinner 0.8s ease-out forwards;
+}
+
 /* ===== Card Deal Animation ===== */
 @keyframes dealCard {
     0% {
