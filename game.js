@@ -369,18 +369,19 @@ function evaluateFiveCards(cards) {
         rank = 8; name = 'Four of a Kind';
         const quadValue = parseInt(Object.keys(valueCounts).find(k => valueCounts[k] === 4));
         const kicker = getKickers([quadValue])[0];
-        // Score: quad value * large multiplier + kicker
-        score = 8000000 + quadValue * 100 + kicker;
+        // Score: quad value + kicker - use base-15 for lexicographic ordering
+        score = 8000000 + quadValue * 15 + kicker;
     } else if (counts[0] === 3 && counts[1] === 2) {
         rank = 7; name = 'Full House';
         const tripValue = parseInt(Object.keys(valueCounts).find(k => valueCounts[k] === 3));
         const pairValue = parseInt(Object.keys(valueCounts).find(k => valueCounts[k] === 2));
-        // No kickers in full house - all 5 cards used
-        score = 7000000 + tripValue * 100 + pairValue;
+        // No kickers in full house - trips then pair, use base-15
+        score = 7000000 + tripValue * 15 + pairValue;
     } else if (isFlush) {
         rank = 6; name = 'Flush';
-        // All 5 cards matter for flush comparison
-        score = 6000000 + values[0] * 10000 + values[1] * 1000 + values[2] * 100 + values[3] * 10 + values[4];
+        // All 5 cards matter for flush comparison - use base-15 for lexicographic ordering
+        // Max: 14*50625 + 14*3375 + 14*225 + 14*15 + 14 = 759,374 (under 1M)
+        score = 6000000 + values[0] * 50625 + values[1] * 3375 + values[2] * 225 + values[3] * 15 + values[4];
     } else if (isStraight || isAceLowStraight) {
         rank = 5; name = 'Straight';
         // Only high card matters for straight
@@ -389,24 +390,27 @@ function evaluateFiveCards(cards) {
         rank = 4; name = 'Three of a Kind';
         const tripValue = parseInt(Object.keys(valueCounts).find(k => valueCounts[k] === 3));
         const kickers = getKickers([tripValue]);
-        // Score: trip value + 2 kickers
-        score = 4000000 + tripValue * 10000 + kickers[0] * 100 + kickers[1];
+        // Score: trip value + 2 kickers - use base-15 for lexicographic ordering
+        score = 4000000 + tripValue * 3375 + kickers[0] * 225 + kickers[1] * 15;
     } else if (counts[0] === 2 && counts[1] === 2) {
         rank = 3; name = 'Two Pair';
         const pairs = Object.keys(valueCounts).filter(k => valueCounts[k] === 2).map(Number).sort((a, b) => b - a);
         const kicker = getKickers(pairs)[0];
-        // Score: high pair + low pair + kicker
-        score = 3000000 + pairs[0] * 10000 + pairs[1] * 100 + kicker;
+        // Score: high pair + low pair + kicker - use base-15 for lexicographic ordering
+        score = 3000000 + pairs[0] * 3375 + pairs[1] * 225 + kicker * 15;
     } else if (counts[0] === 2) {
         rank = 2; name = 'One Pair';
         const pairValue = parseInt(Object.keys(valueCounts).find(k => valueCounts[k] === 2));
         const kickers = getKickers([pairValue]);
-        // Score: pair value + 3 kickers
-        score = 2000000 + pairValue * 1000000 + kickers[0] * 10000 + kickers[1] * 100 + kickers[2];
+        // Score: pair value (most important) + 3 kickers in order
+        // Multipliers use base-15 positions (15^3, 15^2, 15^1, 15^0) to ensure lexicographic ordering
+        // Max: 14*3375 + 14*225 + 14*15 + 14 = 47,250 + 3,150 + 210 + 14 = 50,624 (well under 1M)
+        score = 2000000 + pairValue * 3375 + kickers[0] * 225 + kickers[1] * 15 + kickers[2];
     } else {
         rank = 1; name = 'High Card';
-        // All 5 cards matter
-        score = 1000000 + values[0] * 10000 + values[1] * 1000 + values[2] * 100 + values[3] * 10 + values[4];
+        // All 5 cards matter - use base-15 for lexicographic ordering
+        // Max: 14*50625 + 14*3375 + 14*225 + 14*15 + 14 = 759,374 (under 1M)
+        score = 1000000 + values[0] * 50625 + values[1] * 3375 + values[2] * 225 + values[3] * 15 + values[4];
     }
 
     return { rank, name, highCards: values, score };
