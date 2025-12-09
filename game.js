@@ -700,16 +700,27 @@ async function runBettingRound() {
     // Get players who can still act (not folded, not all-in, have chips)
     const getActingPlayers = () => gameState.players.filter(p => !p.folded && !p.allIn && p.chips > 0);
 
-    // If only one or zero players can act, skip the betting round entirely
-    // (All others are either folded or all-in)
-    if (getActingPlayers().length <= 1) {
+    // If only one or zero players can act and all bets are matched, skip the round
+    const initialActingPlayers = getActingPlayers();
+    if (initialActingPlayers.length === 0) {
+        return;
+    }
+    if (initialActingPlayers.length === 1 && initialActingPlayers.every(p => p.bet === gameState.currentBet)) {
         return;
     }
 
-    // Count how many active players need to act at the start
-    const startingActivePlayers = getActingPlayers().length;
-    let playersActedCount = 0;
-    let everyoneHasActed = false;
+    // Track which players have acted since the last raise/bet
+    // When someone raises, everyone else needs to respond
+    let playersActedSinceLastRaise = new Set();
+
+    // Initialize: if there's already a bet (e.g., blinds), no one has responded yet
+    // If no bet, mark everyone as having "acted" so we just need one round
+    if (gameState.currentBet === 0) {
+        // No bet yet - everyone gets one chance to act
+        for (const p of getActingPlayers()) {
+            playersActedSinceLastRaise.add(p.id);
+        }
+    }
 
     while (true) {
         const player = gameState.players[gameState.currentPlayerIndex];
@@ -719,13 +730,10 @@ async function runBettingRound() {
             break;
         }
 
-        // If only one or zero players can still act, end the round
-        if (getActingPlayers().length <= 1 && everyoneHasActed) {
-            break;
-        }
-
-        // Allow the current player to act if they're active
+        // Check if this player can act
         if (!player.folded && !player.allIn && player.chips > 0) {
+            const previousCurrentBet = gameState.currentBet;
+
             if (player.isAI) {
                 await delay(800);
                 aiDecision(player.id);
@@ -733,19 +741,33 @@ async function runBettingRound() {
                 updateUI();
                 await waitForPlayerAction();
             }
-            playersActedCount++;
 
-            // Once enough players have acted, everyone has had a turn
-            if (playersActedCount >= startingActivePlayers) {
-                everyoneHasActed = true;
+            // Mark this player as having acted
+            playersActedSinceLastRaise.add(player.id);
+
+            // If a raise occurred (current bet increased), reset tracking
+            // Everyone except the raiser needs to act again
+            if (gameState.currentBet > previousCurrentBet) {
+                playersActedSinceLastRaise = new Set([player.id]);
             }
         }
 
         // Move to next player
         if (!nextPlayer()) break;
 
-        // After everyone has acted at least once, check if round is complete
-        if (everyoneHasActed && isRoundComplete()) {
+        // Check if round is complete:
+        // All active players have acted since last raise AND all bets are matched
+        const actingPlayers = getActingPlayers();
+
+        if (actingPlayers.length === 0) {
+            // No one can act anymore (all folded or all-in)
+            break;
+        }
+
+        const allHaveActed = actingPlayers.every(p => playersActedSinceLastRaise.has(p.id));
+        const allBetsMatched = actingPlayers.every(p => p.bet === gameState.currentBet);
+
+        if (allHaveActed && allBetsMatched) {
             break;
         }
     }
@@ -869,8 +891,11 @@ async function startNewGame(randomizeDealer = false) {
 function getNextActivePlayer(fromIndex) {
     // Clockwise direction: 0 -> 1 -> 2 -> 3 -> 0
     let index = (fromIndex + 1) % 4;
-    while (gameState.players[index].folded || gameState.players[index].chips <= 0) {
+    let attempts = 0;
+    // Skip only folded players - all-in players (chips=0 but allIn=true) are still in the hand
+    while (gameState.players[index].folded && attempts < 4) {
         index = (index + 1) % 4;
+        attempts++;
     }
     return index;
 }
