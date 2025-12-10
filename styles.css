@@ -78,7 +78,7 @@ body {
 
 .pot-display {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     background: var(--glass-bg);
     backdrop-filter: blur(10px);
@@ -86,7 +86,7 @@ body {
     border-radius: 12px;
     padding: 6px 16px;
     position: absolute;
-    top: 33%;
+    top: 31%;
     left: 63%;
     transform: translate(-50%, -50%);
     z-index: 10;
@@ -99,11 +99,30 @@ body {
     letter-spacing: 1px;
 }
 
+.pot-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
 .pot-amount {
     font-size: 1.4rem;
     font-weight: 700;
     color: var(--accent-gold);
     text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.pot-chip {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    margin-right: 8px;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    transform: translateZ(0);
+    /* Force GPU layer to prevent blur from backdrop-filter */
+    display: none;
+    /* Hidden by default, shown via JS when pot > 0 */
 }
 
 /* ===== Poker Table ===== */
@@ -202,6 +221,28 @@ body {
     gap: 5px;
 }
 
+/* Card slot wrapper - positions placeholder underneath, card on top */
+.card-slot {
+    position: relative;
+    width: 60px;
+    height: 85px;
+}
+
+.card-slot .card {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.card-slot .card-placeholder {
+    z-index: 1;
+}
+
+.card-slot .card-face,
+.card-slot .card-back {
+    z-index: 2;
+}
+
 .card {
     width: 60px;
     height: 85px;
@@ -270,6 +311,17 @@ body {
 }
 
 .community-cards .card {
+    width: 70px;
+    height: 100px;
+}
+
+/* Community card slot - larger size for center cards */
+.community-slot {
+    width: 70px;
+    height: 100px;
+}
+
+.community-slot .card {
     width: 70px;
     height: 100px;
 }
@@ -838,11 +890,29 @@ body {
     }
 }
 
+/* Animation for centered badges (top/bottom) - preserve translateX */
+@keyframes badgePopCentered {
+    0% {
+        transform: translateX(-50%) scale(0);
+        opacity: 0;
+    }
+
+    50% {
+        transform: translateX(-50%) scale(1.2);
+    }
+
+    100% {
+        transform: translateX(-50%) scale(1);
+        opacity: 1;
+    }
+}
+
 /* Position hand rank badge based on player position */
 .player-top .hand-rank-badge {
     top: -30px;
     left: 50%;
     transform: translateX(-50%);
+    animation: badgePopCentered 0.5s ease forwards;
 }
 
 .player-left .hand-rank-badge {
@@ -861,6 +931,7 @@ body {
     bottom: -30px;
     left: 50%;
     transform: translateX(-50%);
+    animation: badgePopCentered 0.5s ease forwards;
 }
 
 /* ===== Pot Animation ===== */

@@ -131,10 +131,20 @@ function updatePlayerCardsAnimated(playerId) {
     const hidden = player.isAI;
 
     let html = '';
-    for (let i = 0; i < player.cards.length; i++) {
-        // Only animate the last (newly dealt) card
-        const shouldAnimate = (i === player.cards.length - 1);
-        html += getCardHTML(player.cards[i], hidden, shouldAnimate);
+    // Always show 2 card slots - placeholder underneath, card overlaid on top
+    for (let i = 0; i < 2; i++) {
+        if (i < player.cards.length) {
+            // Only animate the last (newly dealt) card
+            const shouldAnimate = (i === player.cards.length - 1);
+            // Wrap in a container with placeholder underneath and card on top
+            html += `<div class="card-slot">
+                <div class="card card-placeholder"></div>
+                ${getCardHTML(player.cards[i], hidden, shouldAnimate)}
+            </div>`;
+        } else {
+            // Show just placeholder for undealt cards
+            html += '<div class="card-slot"><div class="card card-placeholder"></div></div>';
+        }
     }
     cardsContainer.innerHTML = html;
 }
@@ -147,9 +157,13 @@ function updateCommunityCards() {
         if (i < gameState.communityCards.length) {
             // Only animate newly dealt cards
             const shouldAnimate = i >= gameState.displayedCommunityCards;
-            html += getCardHTML(gameState.communityCards[i], false, shouldAnimate);
+            // Wrap in card-slot with placeholder underneath and card on top
+            html += `<div class="card-slot community-slot">
+                <div class="card card-placeholder"></div>
+                ${getCardHTML(gameState.communityCards[i], false, shouldAnimate)}
+            </div>`;
         } else {
-            html += '<div class="card card-placeholder"></div>';
+            html += '<div class="card-slot community-slot"><div class="card card-placeholder"></div></div>';
         }
     }
 
@@ -162,6 +176,11 @@ function updateCommunityCards() {
 function updateUI() {
     // Update pot
     document.getElementById('pot-amount').textContent = `$${gameState.pot}`;
+    // Show/hide pot chip based on pot amount
+    const potChip = document.querySelector('.pot-chip');
+    if (potChip) {
+        potChip.style.display = gameState.pot > 0 ? 'block' : 'none';
+    }
 
     // Update all players
     for (const player of gameState.players) {
@@ -777,6 +796,10 @@ async function startNewGame(randomizeDealer = false) {
     // Clear any previous winner highlights
     clearWinnerHighlights();
 
+    // Restore pot display visibility (hidden during pot animation)
+    const potDisplay = document.querySelector('.pot-display');
+    if (potDisplay) potDisplay.style.visibility = 'visible';
+
     // Reset game state
     gameState.deck = createDeck();
     gameState.communityCards = [];
@@ -957,17 +980,36 @@ async function showdown() {
     await delay(500);
 
     if (playersInHand.length === 1) {
-        // Everyone folded - no highlight needed
+        // Everyone folded - highlight winner and their hole cards
         const winner = playersInHand[0];
         const winAmount = gameState.pot;
+
+        // Reveal winner's cards
+        updatePlayerCards(winner.id, false);
+
+        // Highlight winner (with "Everyone Folded" badge instead of hand name)
+        const playerEl = document.getElementById(`player-${winner.id}`);
+        playerEl.classList.add('winner');
+
+        const badge = document.createElement('div');
+        badge.className = 'hand-rank-badge';
+        badge.textContent = 'Everyone Folded';
+        badge.id = `hand-badge-${winner.id}`;
+        playerEl.appendChild(badge);
+
+        // Highlight winner's hole cards
+        const playerCardsContainer = document.getElementById(`cards-${winner.id}`);
+        const playerCardEls = playerCardsContainer.querySelectorAll('.card');
+        playerCardEls.forEach(card => card.classList.add('winning-card'));
+
+        // Log fold win details in showdown style
+        logFoldWinDetails(winner, winAmount);
 
         // Animate pot to winner
         await animatePotToWinners([winner], [winAmount]);
 
         // Update chips after animation
         winner.chips += winAmount;
-
-        showMessage(`${winner.name} wins $${winAmount} - Everyone folded!`);
     } else {
         // Evaluate all hands first
         for (const player of playersInHand) {
@@ -1078,6 +1120,42 @@ function formatCardsText(cards) {
     return cards.map(card => `${card.value}${card.suit}`).join(' ');
 }
 
+// Log fold win details in showdown-style format
+function logFoldWinDetails(winner, winAmount) {
+    const history = document.getElementById('action-history');
+    if (!history) return;
+
+    const entry = document.createElement('div');
+    entry.className = 'log-entry showdown-details';
+
+    const now = new Date();
+    const time = now.toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric", second: "numeric" });
+
+    let detailsHTML = `
+        <div class="log-time">
+            <span>${time}</span>
+            <span class="log-phase">FOLD WIN</span>
+        </div>
+        <div class="log-content">
+            <div class="showdown-section">
+                <strong>Winner's Hole Cards:</strong>
+                <div class="player-hand winner-hand">
+                    ${winner.name} ⭐: ${formatCardsText(winner.cards)}
+                </div>
+            </div>
+            <div class="showdown-section winner-section">
+                <strong>🏆 Winner:</strong> ${winner.name}
+                <br><strong>Result:</strong> Everyone Folded
+                <br><strong>Prize:</strong> $${winAmount}
+            </div>
+        </div>
+    `;
+
+    entry.innerHTML = detailsHTML;
+    history.appendChild(entry);
+    history.scrollTop = history.scrollHeight;
+}
+
 // Log detailed showdown information to action history
 function logShowdownDetails(playersInHand, winners, handName, winAmount) {
     const history = document.getElementById('action-history');
@@ -1165,13 +1243,13 @@ function highlightWinners(winners, handName) {
 function highlightWinningCards(winner) {
     const bestCards = winner.handResult.bestCards;
 
-    // Get player's hole cards
+    // Get player's hole cards (exclude placeholders)
     const playerCardsContainer = document.getElementById(`cards-${winner.id}`);
-    const playerCardEls = playerCardsContainer.querySelectorAll('.card');
+    const playerCardEls = playerCardsContainer.querySelectorAll('.card:not(.card-placeholder)');
 
-    // Get community cards
+    // Get community cards (exclude placeholders)
     const communityContainer = document.getElementById('community-cards');
-    const communityCardEls = communityContainer.querySelectorAll('.card');
+    const communityCardEls = communityContainer.querySelectorAll('.card:not(.card-placeholder)');
 
     // Check each of the best 5 cards and highlight matching ones
     for (const bestCard of bestCards) {
@@ -1200,6 +1278,9 @@ function highlightWinningCards(winner) {
 async function animatePotToWinners(winners, winAmounts) {
     const potDisplay = document.querySelector('.pot-display');
     const potRect = potDisplay.getBoundingClientRect();
+
+    // Hide original pot display during animation
+    potDisplay.style.visibility = 'hidden';
 
     for (let i = 0; i < winners.length; i++) {
         const winner = winners[i];
