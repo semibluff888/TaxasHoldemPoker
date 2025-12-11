@@ -266,7 +266,7 @@ function updateControls() {
     slider.disabled = !isActive;
 }
 
-function showAction(playerId, action) {
+function showAction(playerId, action, chipsBeforeAction = null) {
     const actionEl = document.getElementById(`action-${playerId}`);
     actionEl.textContent = action;
     actionEl.classList.add('visible');
@@ -275,10 +275,11 @@ function showAction(playerId, action) {
         actionEl.classList.remove('visible');
     }, 2000);
 
-    // Log the action with player's current chip amount
+    // Log the action with player's chip amount before the action
     const player = gameState.players[playerId];
     const name = playerId === 0 ? 'You' : player.name;
-    const chipAmount = player.chips + player.bet; // Show chips before this action
+    // Use provided chipsBeforeAction, or fallback to current chips (for fold/check)
+    const chipAmount = chipsBeforeAction !== null ? chipsBeforeAction : player.chips;
     showMessage(`${name}($${chipAmount}): ${action}`);
 }
 
@@ -457,17 +458,20 @@ function checkStraight(values) {
 // Betting Actions
 function playerFold(playerId) {
     const player = gameState.players[playerId];
+    const chipsBeforeAction = player.chips;
     player.folded = true;
-    showAction(playerId, 'FOLD');
+    showAction(playerId, 'FOLD', chipsBeforeAction);
     updateUI();
 }
 
 function playerCheck(playerId) {
-    showAction(playerId, 'CHECK');
+    const player = gameState.players[playerId];
+    showAction(playerId, 'CHECK', player.chips);
 }
 
 function playerCall(playerId) {
     const player = gameState.players[playerId];
+    const chipsBeforeAction = player.chips;
     const callAmount = Math.min(gameState.currentBet - player.bet, player.chips);
 
     player.chips -= callAmount;
@@ -477,9 +481,9 @@ function playerCall(playerId) {
 
     if (player.chips === 0) {
         player.allIn = true;
-        showAction(playerId, 'ALL IN');
+        showAction(playerId, 'ALL IN', chipsBeforeAction);
     } else {
-        showAction(playerId, `CALL $${callAmount}`);
+        showAction(playerId, `CALL $${callAmount}`, chipsBeforeAction);
     }
 
     updateUI();
@@ -487,6 +491,7 @@ function playerCall(playerId) {
 
 function playerRaise(playerId, totalBet) {
     const player = gameState.players[playerId];
+    const chipsBeforeAction = player.chips;
     const raiseAmount = totalBet - player.bet;
     const actualRaise = totalBet - gameState.currentBet;
 
@@ -499,9 +504,9 @@ function playerRaise(playerId, totalBet) {
 
     if (player.chips === 0) {
         player.allIn = true;
-        showAction(playerId, 'ALL IN');
+        showAction(playerId, 'ALL IN', chipsBeforeAction);
     } else {
-        showAction(playerId, `RAISE $${totalBet}`);
+        showAction(playerId, `RAISE $${totalBet}`, chipsBeforeAction);
     }
 
     updateUI();
@@ -509,6 +514,7 @@ function playerRaise(playerId, totalBet) {
 
 function playerAllIn(playerId) {
     const player = gameState.players[playerId];
+    const chipsBeforeAction = player.chips;
     const allInAmount = player.chips;
     const newBet = player.bet + allInAmount;
 
@@ -523,7 +529,7 @@ function playerAllIn(playerId) {
     player.allIn = true;
     gameState.pot += allInAmount;
 
-    showAction(playerId, 'ALL IN');
+    showAction(playerId, 'ALL IN', chipsBeforeAction);
     updateUI();
 }
 
@@ -939,6 +945,7 @@ function getNextActivePlayer(fromIndex) {
 
 function postBlind(playerIndex, amount) {
     const player = gameState.players[playerIndex];
+    const chipsBeforeAction = player.chips;
     const blindAmount = Math.min(amount, player.chips);
 
     player.chips -= blindAmount;
@@ -950,7 +957,7 @@ function postBlind(playerIndex, amount) {
         player.allIn = true;
     }
 
-    showAction(playerIndex, amount === SMALL_BLIND ? 'SB' : 'BB');
+    showAction(playerIndex, amount === SMALL_BLIND ? 'SB' : 'BB', chipsBeforeAction);
 }
 
 async function dealFlop() {
