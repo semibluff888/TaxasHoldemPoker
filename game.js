@@ -23,6 +23,11 @@ let gameState = {
     displayedCommunityCards: 0
 };
 
+// Hand History State
+let handNumber = 0; // Current hand number
+let handHistories = []; // Array to store history for each hand
+let currentViewingHand = 0; // Which hand history we're currently viewing
+
 // Initialize Players
 function initPlayers() {
     gameState.players = [
@@ -789,9 +794,29 @@ function resolvePlayerAction() {
 
 // Game Phases
 async function startNewGame(randomizeDealer = false) {
-    // Clear action history
+    // Save current hand's history before starting new hand
     const history = document.getElementById('action-history');
-    if (history) history.innerHTML = '';
+    if (history && handNumber > 0 && history.innerHTML.trim() !== '') {
+        handHistories[handNumber - 1] = history.innerHTML;
+    }
+
+    // Increment hand counter
+    handNumber++;
+    currentViewingHand = handNumber;
+
+    // Clear action history
+    if (history) {
+        history.innerHTML = '';
+    }
+
+    // Update hand number in panel header (stays visible when scrolling)
+    const panelHandNumber = document.getElementById('panel-hand-number');
+    if (panelHandNumber) {
+        panelHandNumber.textContent = `Hand #${handNumber}`;
+    }
+
+    // Update navigation buttons
+    updateHistoryNavigation();
 
     // Clear any previous winner highlights
     clearWinnerHighlights();
@@ -1192,11 +1217,18 @@ function logShowdownDetails(playersInHand, winners, handName, winAmount) {
         `;
     }
 
+    // Build best cards info for each winner
+    const winnersCardsInfo = winners.map(w => {
+        const bestCards = w.handResult && w.handResult.bestCards ? formatCardsText(w.handResult.bestCards) : 'N/A';
+        return `${bestCards}(${w.name})`;
+    }).join('<br>');
+
     detailsHTML += `
             </div>
             <div class="showdown-section winner-section">
                 <strong>🏆 Winner:</strong> ${winners.map(w => w.name).join(' & ')}
                 <br><strong>Winning Hand:</strong> ${handName}
+                <br><strong>Best 5 Cards:</strong><br>${winnersCardsInfo}
                 <br><strong>Prize:</strong> $${winAmount}${winners.length > 1 ? ' each (Split Pot)' : ''}
             </div>
         </div>
@@ -1393,13 +1425,117 @@ function resetAndStartNewGame() {
     for (const player of gameState.players) {
         player.chips = STARTING_CHIPS;
     }
+    // Reset hand counter and clear all history
+    handNumber = 0;
+    handHistories = [];
+    currentViewingHand = 0;
     startNewGame(true);
 }
 
 document.getElementById('btn-new-game').addEventListener('click', resetAndStartNewGame);
 document.getElementById('btn-continue').addEventListener('click', resetAndStartNewGame);
 
+// ===== Hand History Navigation =====
+
+// Update navigation buttons state
+function updateHistoryNavigation() {
+    const prevBtn = document.getElementById('btn-prev-hand');
+    const nextBtn = document.getElementById('btn-next-hand');
+    const returnBtn = document.getElementById('btn-return-hand');
+
+    if (prevBtn) {
+        prevBtn.disabled = currentViewingHand <= 1;
+    }
+    if (nextBtn) {
+        nextBtn.disabled = currentViewingHand >= handNumber;
+    }
+    if (returnBtn) {
+        // Return button is only enabled when viewing a past hand
+        returnBtn.disabled = currentViewingHand >= handNumber;
+    }
+}
+
+// Navigate to previous or next hand
+function navigateToHand(direction) {
+    const history = document.getElementById('action-history');
+    if (!history) return;
+
+    // Save current hand's history if viewing current hand
+    if (currentViewingHand === handNumber && history.innerHTML.trim() !== '') {
+        handHistories[handNumber - 1] = history.innerHTML;
+    }
+
+    // Calculate target hand
+    let targetHand = currentViewingHand + direction;
+
+    // Clamp to valid range
+    if (targetHand < 1) targetHand = 1;
+    if (targetHand > handNumber) targetHand = handNumber;
+
+    // No change needed
+    if (targetHand === currentViewingHand) return;
+
+    currentViewingHand = targetHand;
+
+    // Load the target hand's history
+    if (handHistories[targetHand - 1]) {
+        history.innerHTML = handHistories[targetHand - 1];
+    } else {
+        // Fallback: show empty
+        history.innerHTML = '';
+    }
+
+    // Update hand number in panel header
+    const panelHandNumber = document.getElementById('panel-hand-number');
+    if (panelHandNumber) {
+        if (currentViewingHand === handNumber) {
+            panelHandNumber.textContent = `Hand #${handNumber}`;
+            panelHandNumber.classList.remove('viewing-past');
+        } else {
+            panelHandNumber.textContent = `Hand #${currentViewingHand} of ${handNumber}`;
+            panelHandNumber.classList.add('viewing-past');
+        }
+    }
+
+    // Update navigation buttons
+    updateHistoryNavigation();
+}
+
+// Navigation button event listeners
+document.getElementById('btn-prev-hand').addEventListener('click', () => navigateToHand(-1));
+document.getElementById('btn-next-hand').addEventListener('click', () => navigateToHand(1));
+
+// Return to current hand
+function returnToCurrentHand() {
+    if (currentViewingHand === handNumber) return;
+
+    const history = document.getElementById('action-history');
+    if (!history) return;
+
+    currentViewingHand = handNumber;
+
+    // Load current hand's history
+    if (handHistories[handNumber - 1]) {
+        history.innerHTML = handHistories[handNumber - 1];
+    } else {
+        history.innerHTML = '';
+    }
+
+    // Update hand number in panel header
+    const panelHandNumber = document.getElementById('panel-hand-number');
+    if (panelHandNumber) {
+        panelHandNumber.textContent = `Hand #${handNumber}`;
+        panelHandNumber.classList.remove('viewing-past');
+    }
+
+    // Update navigation buttons
+    updateHistoryNavigation();
+}
+
+document.getElementById('btn-return-hand').addEventListener('click', returnToCurrentHand);
+
 // Initialize
 initPlayers();
 updateUI();
 showMessage('Click "New Game" to start playing Texas Hold\'em!');
+
