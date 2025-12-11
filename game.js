@@ -1044,7 +1044,8 @@ async function showdown() {
         }
 
         // Calculate pots (main pot and side pots)
-        const pots = calculatePots(playersInHand);
+        // Pass all players so folded contributions are included
+        const pots = calculatePots(gameState.players);
 
         let allWinners = [];
         let firstHandName = '';
@@ -1103,9 +1104,16 @@ async function showdown() {
 }
 
 // Calculate main pot and side pots based on player contributions
-function calculatePots(playersInHand) {
-    // Get all non-folded players with their contributions
-    const playerContributions = playersInHand.map(p => ({
+// Includes contributions from folded players in pot amounts
+function calculatePots(allPlayers) {
+    // Separate folded and active players
+    const activePlayers = allPlayers.filter(p => !p.folded);
+    const foldedContributions = allPlayers
+        .filter(p => p.folded)
+        .reduce((sum, p) => sum + p.totalContribution, 0);
+
+    // Sort active players by contribution (lowest first)
+    const playerContributions = activePlayers.map(p => ({
         player: p,
         contribution: p.totalContribution
     })).sort((a, b) => a.contribution - b.contribution);
@@ -1120,7 +1128,12 @@ function calculatePots(playersInHand) {
             // Calculate pot amount at this level
             const levelContribution = currentLevel - previousLevel;
             const eligibleCount = playerContributions.length - i;
-            const potAmount = levelContribution * eligibleCount;
+            let potAmount = levelContribution * eligibleCount;
+
+            // Add folded players' contributions to the main pot (first pot only)
+            if (pots.length === 0) {
+                potAmount += foldedContributions;
+            }
 
             // Get eligible players for this pot (all players at or above this contribution level)
             const eligiblePlayers = playerContributions
