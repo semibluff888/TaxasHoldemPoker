@@ -21,12 +21,19 @@
             <!-- Left Panel: Action History -->
             <div class="side-panel">
                 <div class="panel-header">Action History</div>
+                <div class="panel-hand-number" id="panel-hand-number"></div>
                 <div class="action-history" id="action-history">
                     <!-- History logs will appear here -->
                     <div class="log-entry">
                         <span class="log-time">--:--</span>
                         <span class="log-content">Game started</span>
                     </div>
+                </div>
+                <!-- History Navigation Buttons -->
+                <div class="history-nav" id="history-nav">
+                    <button class="btn btn-nav" id="btn-prev-hand" disabled>◀ Previous</button>
+                    <button class="btn btn-nav btn-return" id="btn-return-hand" disabled>Return ↩</button>
+                    <button class="btn btn-nav" id="btn-next-hand" disabled>Next ▶</button>
                 </div>
             </div>
 
