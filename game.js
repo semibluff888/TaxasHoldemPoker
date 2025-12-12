@@ -229,7 +229,8 @@ function getDealingOrder() {
     let currentIndex = (gameState.dealerIndex + 1) % 4;
     for (let i = 0; i < 4; i++) {
         const player = gameState.players[currentIndex];
-        if (!player.folded && player.chips > 0) {
+        // Include all-in players (chips >= 0) - they still need cards dealt
+        if (!player.folded && player.chips >= 0) {
             order.push(currentIndex);
         }
         currentIndex = (currentIndex + 1) % 4;
