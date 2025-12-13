@@ -28,6 +28,7 @@ body {
     background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
     min-height: 100vh;
     color: var(--text-primary);
+    cursor: url('pic/pointer.png') 0 0, auto;
     overflow-x: hidden;
 }
 
@@ -1416,6 +1417,20 @@ body {
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    position: relative;
+}
+
+/* Anya image in help popup */
+.help-anya-image {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 80px;
+    height: auto;
+    border-radius: 10px;
+    border: none;
+    outline: none;
+    box-shadow: none;
 }
 
 .help-content h2 {

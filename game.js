@@ -244,14 +244,18 @@ function getDealingOrder() {
 async function dealHoleCards(thisGameId) {
     const dealingOrder = getDealingOrder();
 
+    // Minimum time for dealer GIF to play (in ms)
+    const MIN_GIF_DURATION = 2000;
+    const startTime = Date.now();
+
     // Show dealer animation
-    showDealerAnimation(DEALER_GIF_PREFLOP);
+    showDealerAnimation(DEALER_GIF_PREFLOP, thisGameId);
 
     // Deal first card to each player
     for (const playerId of dealingOrder) {
         // Check if game was cancelled
         if (currentGameId !== thisGameId) {
-            hideDealerAnimation();
+            hideDealerAnimation(thisGameId);
             return;
         }
 
@@ -266,7 +270,7 @@ async function dealHoleCards(thisGameId) {
     for (const playerId of dealingOrder) {
         // Check if game was cancelled
         if (currentGameId !== thisGameId) {
-            hideDealerAnimation();
+            hideDealerAnimation(thisGameId);
             return;
         }
 
@@ -277,8 +281,20 @@ async function dealHoleCards(thisGameId) {
         await delay(200);
     }
 
+    // Wait for minimum GIF duration if dealing was faster
+    const elapsed = Date.now() - startTime;
+    if (elapsed < MIN_GIF_DURATION) {
+        await delay(MIN_GIF_DURATION - elapsed);
+    }
+
+    // Check if game was cancelled during extra wait
+    if (currentGameId !== thisGameId) {
+        hideDealerAnimation(thisGameId);
+        return;
+    }
+
     // Hide dealer animation
-    hideDealerAnimation();
+    hideDealerAnimation(thisGameId);
 }
 
 // Card Display
@@ -1061,19 +1077,29 @@ const DEALER_GIF_FLOP = 'pic/dealing_left.gif';
 const DEALER_GIF_TURN_RIVER = 'pic/dealing_right.gif';
 const DEALER_STATIC_SRC = 'pic/dealing.png';
 
-function showDealerAnimation(gifSrc) {
+// Track which game started the current animation
+let dealerAnimationGameId = null;
+
+function showDealerAnimation(gifSrc, gameId) {
     const gif = document.getElementById('dealer-gif');
     if (gif) {
+        // Track which game owns this animation
+        dealerAnimationGameId = gameId || currentGameId;
         // Start the animated gif with unique query param to force restart
         gif.src = gifSrc + '?t=' + Date.now();
     }
 }
 
-function hideDealerAnimation() {
+function hideDealerAnimation(gameId) {
     const gif = document.getElementById('dealer-gif');
     if (gif) {
-        // Replace with static image to stop the animation
-        gif.src = DEALER_STATIC_SRC;
+        // Only hide if this is from the current game (or if no gameId provided)
+        // This prevents old game's hide call from affecting new game's animation
+        if (gameId === undefined || gameId === dealerAnimationGameId) {
+            // Replace with static image to stop the animation
+            gif.src = DEALER_STATIC_SRC;
+            dealerAnimationGameId = null;
+        }
     }
 }
 
@@ -1281,7 +1307,7 @@ async function dealFlop(thisGameId) {
     if (currentGameId !== thisGameId) return;
 
     // Show dealer animation
-    showDealerAnimation(DEALER_GIF_FLOP);
+    showDealerAnimation(DEALER_GIF_FLOP, thisGameId);
 
     // Burn and deal 3 cards
     dealCard(); // Burn
@@ -1298,7 +1324,7 @@ async function dealFlop(thisGameId) {
     await delay(1000);
 
     // Hide dealer animation
-    hideDealerAnimation();
+    hideDealerAnimation(thisGameId);
 
     // Check if game was cancelled after delay
     if (currentGameId !== thisGameId) return;
@@ -1314,7 +1340,7 @@ async function dealTurn(thisGameId) {
     if (currentGameId !== thisGameId) return;
 
     // Show dealer animation
-    showDealerAnimation(DEALER_GIF_TURN_RIVER);
+    showDealerAnimation(DEALER_GIF_TURN_RIVER, thisGameId);
 
     // Burn and deal 1 card
     dealCard(); // Burn
@@ -1329,7 +1355,7 @@ async function dealTurn(thisGameId) {
     await delay(1000);
 
     // Hide dealer animation
-    hideDealerAnimation();
+    hideDealerAnimation(thisGameId);
 
     // Check if game was cancelled after delay
     if (currentGameId !== thisGameId) return;
@@ -1345,7 +1371,7 @@ async function dealRiver(thisGameId) {
     if (currentGameId !== thisGameId) return;
 
     // Show dealer animation
-    showDealerAnimation(DEALER_GIF_TURN_RIVER);
+    showDealerAnimation(DEALER_GIF_TURN_RIVER, thisGameId);
 
     // Burn and deal 1 card
     dealCard(); // Burn
@@ -1360,7 +1386,7 @@ async function dealRiver(thisGameId) {
     await delay(1000);
 
     // Hide dealer animation
-    hideDealerAnimation();
+    hideDealerAnimation(thisGameId);
 
     // Check if game was cancelled after delay
     if (currentGameId !== thisGameId) return;
