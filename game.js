@@ -1529,6 +1529,42 @@ function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// ===== AI Player Portraits =====
+const AI_PORTRAITS = [
+    'pic/portrait/Becky_Blackbell_Portrait.png',
+    'pic/portrait/Bond_Forger_Portrait.png',
+    'pic/portrait/Camilla_Portrait.png',
+    'pic/portrait/Damian_Desmond_Portrait.png',
+    'pic/portrait/Dominic_Portrait.png',
+    'pic/portrait/Ewen_Egeburg_Portrait.png',
+    'pic/portrait/Fiona_Frost_Portrait.png',
+    'pic/portrait/Franky_Franklin_Portrait.png',
+    'pic/portrait/Henry_Henderson_Portrait.png',
+    'pic/portrait/Loid_Forger_Portrait.png',
+    'pic/portrait/Sylvia_Sherwood_Portrait.png',
+    'pic/portrait/Yor_Forger_Portrait.png',
+    'pic/portrait/Yuri_Briar_Portrait.png'
+];
+
+// Randomize AI player portraits
+function randomizeAIPortraits() {
+    // Get number of AI players (all players except human at index 0)
+    const aiPlayerCount = gameState.players.length - 1;
+
+    // Shuffle array and pick unique portraits for each AI
+    const shuffled = [...AI_PORTRAITS].sort(() => Math.random() - 0.5);
+
+    for (let i = 1; i <= aiPlayerCount; i++) {
+        const avatarContainer = document.getElementById(`avatar-${i}`);
+        if (avatarContainer) {
+            const img = avatarContainer.querySelector('img');
+            if (img) {
+                img.src = shuffled[i - 1];
+            }
+        }
+    }
+}
+
 // Dealer Animation Control
 const DEALER_GIF_PREFLOP = 'pic/dealing_preflop.gif';
 const DEALER_GIF_FLOP = 'pic/dealing_left.gif';
@@ -2427,6 +2463,9 @@ function resetAndStartNewGame() {
         panelHandNumber.textContent = '';
         panelHandNumber.classList.remove('viewing-past');
     }
+
+    // Randomize AI player portraits for this new game
+    randomizeAIPortraits();
 
     startNewGame(true);
 }
