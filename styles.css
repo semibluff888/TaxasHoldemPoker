@@ -589,6 +589,40 @@ body {
     transform: translateY(-5px);
 }
 
+/* ===== Fold Card Effects ===== */
+/* User's folded cards - faded effect */
+.player-human.folded .player-cards .card {
+    opacity: 0.3;
+    filter: grayscale(80%);
+    transform: scale(0.95);
+    transition: all 0.5s ease;
+}
+
+/* AI fold card flying animation */
+.card-fold-fly {
+    position: fixed !important;
+    z-index: 2000;
+    pointer-events: none;
+    animation: foldFlyToCenter 0.6s ease-in forwards;
+}
+
+@keyframes foldFlyToCenter {
+    0% {
+        opacity: 1;
+        transform: scale(1) rotate(0deg) translate(0, 0);
+    }
+
+    50% {
+        opacity: 0.7;
+        transform: scale(0.7) rotate(10deg) translate(calc(var(--fly-x) * 0.5), calc(var(--fly-y) * 0.5));
+    }
+
+    100% {
+        opacity: 0;
+        transform: scale(0.2) rotate(20deg) translate(var(--fly-x), var(--fly-y));
+    }
+}
+
 /* ===== Community Cards ===== */
 .community-cards {
     position: absolute;
@@ -709,14 +743,16 @@ body {
 
 .player-bottom-left .dealer-chip {
     top: -25px;
-    left: 50%;
-    transform: translateX(-50%);
+    left: auto;
+    right: -25px;
+    transform: none;
 }
 
 .player-bottom-right .dealer-chip {
     top: -25px;
-    left: 50%;
-    transform: translateX(-50%);
+    left: -25px;
+    right: auto;
+    transform: none;
 }
 
 .player-bottom .dealer-chip {
@@ -828,15 +864,17 @@ body {
 
 .player-bottom-left .player-bet {
     bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
+    left: auto;
+    right: -30px;
+    transform: none;
     margin-bottom: 25px;
 }
 
 .player-bottom-right .player-bet {
     bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
+    left: -30px;
+    right: auto;
+    transform: none;
     margin-bottom: 25px;
 }
 
