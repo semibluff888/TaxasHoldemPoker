@@ -58,6 +58,7 @@ const TRANSLATIONS = {
         twoPair: 'Two Pair',
         onePair: 'One Pair',
         highCard: 'High Card',
+        everyoneFolded: 'Everyone Folded',
 
         // Help Popup
         helpTitle: '🃏 Poker Hand Rankings',
@@ -104,6 +105,19 @@ const TRANSLATIONS = {
         cursorBubble: '🔮 Bubble',
         cursorNone: '❌ None',
 
+        // Showdown Log
+        communityCards: 'Community Cards:',
+        playersHoleCards: "Players' Hole Cards:",
+        winnerLabel: '🏆 Winner:',
+        winningHand: 'Winning Hand:',
+        best5Cards: 'Best 5 Cards:',
+        prize: 'Prize:',
+        winnersHoleCards: "Winner's Hole Cards:",
+        result: 'Result:',
+
+        // Messages
+        startMessage: 'Click "New Game" to start playing Texas Hold\'em!',
+        potWinMessage: '{pot}: {winner} wins ${amount} with {hand}',
         // Table
         tableTitle: 'SPY×FAMILY'
     },
@@ -152,6 +166,7 @@ const TRANSLATIONS = {
         twoPair: '两对',
         onePair: '一对',
         highCard: '高牌',
+        everyoneFolded: '全部弃牌',
 
         // Help Popup
         helpTitle: '🃏 扑克牌型排名',
@@ -198,6 +213,20 @@ const TRANSLATIONS = {
         cursorBubble: '🔮 气泡',
         cursorNone: '❌ 无',
 
+        // Showdown Log
+        communityCards: '公共牌:',
+        playersHoleCards: '玩家手牌:',
+        winnerLabel: '🏆 赢家:',
+        winningHand: '获胜牌型:',
+        best5Cards: '最佳5张:',
+        prize: '奖金:',
+        winnersHoleCards: '赢家手牌:',
+        result: '结果:',
+
+        // Messages
+        startMessage: '点击 "新游戏" 开始德州扑克!',
+        potWinMessage: '{pot}: {winner} 以 {hand} 赢得 ${amount}',
+
         // Table
         tableTitle: '间谍过家家'
     }
@@ -225,6 +254,11 @@ function translateHandName(englishName) {
     };
     const key = handMap[englishName];
     return key ? t(key) : englishName;
+}
+
+// Get translated player name
+function getTranslatedPlayerName(player) {
+    return player.id === 0 ? t('you') : `${t('aiPlayer')} ${player.id}`;
 }
 
 // Switch language
@@ -689,7 +723,8 @@ function updatePlayerCards(playerId, isHidden = false) {
     const player = gameState.players[playerId];
     const cardsContainer = document.getElementById(`cards-${playerId}`);
 
-    if (player.cards.length === 0) {
+    // Show placeholders for players with no cards OR folded AI players
+    if (player.cards.length === 0 || (player.folded && player.isAI)) {
         cardsContainer.innerHTML = `
             <div class="card card-placeholder"></div>
             <div class="card card-placeholder"></div>
@@ -1047,10 +1082,83 @@ function checkStraight(values) {
 function playerFold(playerId) {
     const player = gameState.players[playerId];
     const chipsBeforeAction = player.chips;
+
+    // Trigger flying animation for AI players before marking as folded
+    if (player.isAI) {
+        animateFoldCards(playerId);
+    }
+
     player.folded = true;
     showAction(playerId, t('actionFold'), chipsBeforeAction);
     SoundManager.playFold();
     updateUI();
+}
+
+// Animate AI fold cards flying to center
+function animateFoldCards(playerId) {
+    const cardsContainer = document.getElementById(`cards-${playerId}`);
+    const cards = cardsContainer.querySelectorAll('.card');
+    const communityCards = document.querySelector('.community-cards');
+
+    if (!communityCards || cards.length === 0) return;
+
+    // Get the center of community cards area
+    const communityRect = communityCards.getBoundingClientRect();
+    const targetCenterX = communityRect.left + communityRect.width / 2;
+    const targetCenterY = communityRect.top + communityRect.height / 2;
+
+    cards.forEach((card, index) => {
+        const cardRect = card.getBoundingClientRect();
+
+        // Starting position (card's current center)
+        const startX = cardRect.left + cardRect.width / 2;
+        const startY = cardRect.top + cardRect.height / 2;
+
+        // Create a clone for animation
+        const clone = card.cloneNode(true);
+        clone.style.position = 'fixed';
+        clone.style.left = `${startX - cardRect.width / 2}px`;
+        clone.style.top = `${startY - cardRect.height / 2}px`;
+        clone.style.width = `${cardRect.width}px`;
+        clone.style.height = `${cardRect.height}px`;
+        clone.style.zIndex = '2000';
+        clone.style.pointerEvents = 'none';
+        clone.style.margin = '0';
+
+        document.body.appendChild(clone);
+
+        // Use Web Animations API for reliable animation
+        const animation = clone.animate([
+            {
+                left: `${startX - cardRect.width / 2}px`,
+                top: `${startY - cardRect.height / 2}px`,
+                opacity: 1,
+                transform: 'scale(1) rotate(0deg)'
+            },
+            {
+                left: `${targetCenterX - cardRect.width / 2}px`,
+                top: `${targetCenterY - cardRect.height / 2}px`,
+                opacity: 0,
+                transform: 'scale(0.3) rotate(25deg)'
+            }
+        ], {
+            duration: 500,
+            delay: index * 80,
+            easing: 'ease-in',
+            fill: 'forwards'
+        });
+
+        // Remove clone after animation
+        animation.onfinish = () => {
+            clone.remove();
+        };
+    });
+
+    // Hide original cards immediately by showing placeholders
+    cardsContainer.innerHTML = `
+        <div class="card card-placeholder"></div>
+        <div class="card card-placeholder"></div>
+    `;
 }
 
 function playerCheck(playerId) {
@@ -1429,6 +1537,7 @@ const DEALER_STATIC_SRC = 'pic/dealing.png';
 
 // Track which game started the current animation
 let dealerAnimationGameId = null;
+let winAnimationTimeoutId = null;
 
 function showDealerAnimation(gifSrc, gameId) {
     const gif = document.getElementById('dealer-gif');
@@ -1480,6 +1589,12 @@ async function startNewGame(randomizeDealer = false) {
 
     // Start background music (only plays if user has enabled it)
     SoundManager.playMusic();
+
+    // Clear any pending win animation timeout to prevent it from interrupting dealing
+    if (winAnimationTimeoutId) {
+        clearTimeout(winAnimationTimeoutId);
+        winAnimationTimeoutId = null;
+    }
 
     // Clear any pending player action resolver from previous game
     if (playerActionResolver) {
@@ -1769,6 +1884,11 @@ async function showdown(thisGameId) {
         // Play win sound
         SoundManager.playWin();
 
+        // Show win animation if human player wins
+        if (winner.id === 0) {
+            showWinAnimation();
+        }
+
         // Reveal winner's cards
         updatePlayerCards(winner.id, false);
 
@@ -1778,7 +1898,7 @@ async function showdown(thisGameId) {
 
         const badge = document.createElement('div');
         badge.className = 'hand-rank-badge';
-        badge.textContent = 'Everyone Folded';
+        badge.textContent = t('everyoneFolded');
         badge.id = `hand-badge-${winner.id}`;
         playerEl.appendChild(badge);
 
@@ -1846,9 +1966,18 @@ async function showdown(thisGameId) {
                 winner.chips += winAmount;
             }
 
-            // Log each pot award
-            const winnerNames = potWinners.map(w => w.name).join(' & ');
-            showMessage(`${potName}: ${winnerNames} wins $${winAmount} with ${handName}`);
+            // Log each pot award - translate all parts
+            const translatedPotName = i === 0 ? t('mainPot') : `${t('sidePot')} ${i}`;
+            const translatedWinnerNames = potWinners.map(w => getTranslatedPlayerName(w)).join(' & ');
+            const translatedHandName = translateHandName(handName);
+
+            // Use translated message format
+            const message = t('potWinMessage')
+                .replace('{pot}', translatedPotName)
+                .replace('{winner}', translatedWinnerNames)
+                .replace('{amount}', winAmount)
+                .replace('{hand}', translatedHandName);
+            showMessage(message);
         }
 
         // Log showdown details to action history (pass individual win amounts)
@@ -1927,24 +2056,25 @@ function formatCardsText(cards) {
 function logFoldWinDetails(winner, winAmount) {
     const now = new Date();
     const time = now.toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric", second: "numeric" });
+    const winnerName = getTranslatedPlayerName(winner);
 
     const entryHTML = `
         <div class="log-entry showdown-details">
             <div class="log-time">
                 <span>${time}</span>
-                <span class="log-phase">FOLD WIN</span>
+                <span class="log-phase">${t('everyoneFolded')}</span>
             </div>
             <div class="log-content">
                 <div class="showdown-section">
-                    <strong>Winner's Hole Cards:</strong>
+                    <strong>${t('winnersHoleCards')}</strong>
                     <div class="player-hand winner-hand">
-                        ${winner.name} ⭐: ${formatCardsText(winner.cards)}
+                        ${winnerName} ⭐: ${formatCardsText(winner.cards)}
                     </div>
                 </div>
                 <div class="showdown-section winner-section">
-                    <strong>🏆 Winner:</strong> ${winner.name}
-                    <br><strong>Result:</strong> Everyone Folded
-                    <br><strong>Prize:</strong> $${winAmount}
+                    <strong>${t('winnerLabel')}</strong> ${winnerName}
+                    <br><strong>${t('result')}</strong> ${t('everyoneFolded')}
+                    <br><strong>${t('prize')}</strong> $${winAmount}
                 </div>
             </div>
         </div>
@@ -1963,9 +2093,10 @@ function logShowdownDetails(playersInHand, winners, handName, totalWinAmounts) {
     for (const player of playersInHand) {
         const isWinner = winners.some(w => w.id === player.id);
         const winnerMark = isWinner ? ' ⭐' : '';
+        const playerName = getTranslatedPlayerName(player);
         playerCardsHTML += `
             <div class="player-hand ${isWinner ? 'winner-hand' : ''}">
-                ${player.name}${winnerMark}: ${formatCardsText(player.cards)}
+                ${playerName}${winnerMark}: ${formatCardsText(player.cards)}
             </div>
         `;
     }
@@ -1973,34 +2104,42 @@ function logShowdownDetails(playersInHand, winners, handName, totalWinAmounts) {
     // Build best cards info for each winner with their prize
     const winnersCardsInfo = winners.map(w => {
         const bestCards = w.handResult && w.handResult.bestCards ? formatCardsText(w.handResult.bestCards) : 'N/A';
-        return `${bestCards}(${w.name})`;
+        const winnerName = getTranslatedPlayerName(w);
+        return `${bestCards}(${winnerName})`;
     }).join('<br>');
 
     // Build prize info for each winner
     const prizeInfo = winners.map(w => {
         const winAmount = totalWinAmounts[w.id] || 0;
-        return `${w.name}: $${winAmount}`;
+        const winnerName = getTranslatedPlayerName(w);
+        return `${winnerName}: $${winAmount}`;
     }).join('<br>');
+
+    // Translate hand name
+    const translatedHandName = translateHandName(handName);
+
+    // Build winner names list
+    const winnerNames = winners.map(w => getTranslatedPlayerName(w)).join(' & ');
 
     const entryHTML = `
         <div class="log-entry showdown-details">
             <div class="log-time">
                 <span>${time}</span>
-                <span class="log-phase">SHOWDOWN</span>
+                <span class="log-phase">${t('showdown')}</span>
             </div>
             <div class="log-content">
                 <div class="showdown-section">
-                    <strong>Community Cards:</strong> ${formatCardsText(gameState.communityCards)}
+                    <strong>${t('communityCards')}</strong> ${formatCardsText(gameState.communityCards)}
                 </div>
                 <div class="showdown-section">
-                    <strong>Players' Hole Cards:</strong>
+                    <strong>${t('playersHoleCards')}</strong>
                     ${playerCardsHTML}
                 </div>
                 <div class="showdown-section winner-section">
-                    <strong>🏆 Winner:</strong> ${winners.map(w => w.name).join(' & ')}
-                    <br><strong>Winning Hand:</strong> ${handName}
-                    <br><strong>Best 5 Cards:</strong><br>${winnersCardsInfo}
-                    <br><strong>Prize:</strong><br>${prizeInfo}
+                    <strong>${t('winnerLabel')}</strong> ${winnerNames}
+                    <br><strong>${t('winningHand')}</strong> ${translatedHandName}
+                    <br><strong>${t('best5Cards')}</strong><br>${winnersCardsInfo}
+                    <br><strong>${t('prize')}</strong><br>${prizeInfo}
                 </div>
             </div>
         </div>
@@ -2033,6 +2172,12 @@ function highlightWinners(winners) {
     // Play win sound
     SoundManager.playWin();
 
+    // Check if human player (id 0) is among winners - show win animation
+    const humanWinner = winners.find(w => w.id === 0);
+    if (humanWinner) {
+        showWinAnimation();
+    }
+
     for (const winner of winners) {
         const playerEl = document.getElementById(`player-${winner.id}`);
         playerEl.classList.add('winner');
@@ -2048,6 +2193,26 @@ function highlightWinners(winners) {
         if (winner.handResult && winner.handResult.bestCards && winner.handResult.bestCards.length > 0) {
             highlightWinningCards(winner);
         }
+    }
+}
+
+// Show win animation for human player
+function showWinAnimation() {
+    const gif = document.getElementById('dealer-gif');
+    if (gif) {
+        // Clear any existing win animation timeout
+        if (winAnimationTimeoutId) {
+            clearTimeout(winAnimationTimeoutId);
+        }
+
+        // Change src with cache-bust to restart animation
+        gif.src = 'pic/user_win.gif?t=' + Date.now();
+
+        // Auto-hide after animation plays (approximately cost 1.6 seconds)
+        winAnimationTimeoutId = setTimeout(() => {
+            gif.src = DEALER_STATIC_SRC;
+            winAnimationTimeoutId = null;
+        }, 1600);
     }
 }
 
@@ -2481,4 +2646,4 @@ initPlayers();
 SoundManager.init();
 updateUI();
 updateLanguageUI(); // Apply saved language preference
-showMessage('Click "New Game" to start playing Texas Hold\'em!');
+showMessage(t('startMessage'));
