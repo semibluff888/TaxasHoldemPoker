@@ -829,7 +829,10 @@ function updateUI() {
 
         const playerEl = document.getElementById(`player-${player.id}`);
         playerEl.classList.toggle('folded', player.folded);
-        playerEl.classList.toggle('active', gameState.currentPlayerIndex === player.id && !player.folded);
+        // Only show active state when game is in progress (not idle)
+        const isActivePlayer = gameState.phase !== 'idle' &&
+            gameState.currentPlayerIndex === player.id && !player.folded;
+        playerEl.classList.toggle('active', isActivePlayer);
 
         // Update dealer chip
         const dealerChip = document.getElementById(`dealer-${player.id}`);
@@ -1492,6 +1495,8 @@ async function runBettingRound() {
             const previousCurrentBet = gameState.currentBet;
 
             if (player.isAI) {
+                // Update UI to show active state for AI player
+                updateUI();
                 await delay(800);
                 // Check again after await in case game was cancelled during delay
                 if (currentGameId !== thisGameId) return;
@@ -2142,15 +2147,23 @@ function logShowdownDetails(playersInHand, winners, handName, totalWinAmounts) {
     const now = new Date();
     const time = now.toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric", second: "numeric" });
 
-    // Build player hole cards HTML
+    // Build player hole cards HTML, sorted by hand strength (best first)
+    // Evaluate each player's hand and sort by score descending
+    const playersWithHands = playersInHand.map(player => {
+        const allCards = [...player.cards, ...gameState.communityCards];
+        const handResult = evaluateHand(allCards);
+        return { player, handResult };
+    }).sort((a, b) => b.handResult.score - a.handResult.score);
+
     let playerCardsHTML = '';
-    for (const player of playersInHand) {
+    for (const { player, handResult } of playersWithHands) {
         const isWinner = winners.some(w => w.id === player.id);
         const winnerMark = isWinner ? ' ⭐' : '';
         const playerName = getTranslatedPlayerName(player);
+        const handName = translateHandName(handResult.name);
         playerCardsHTML += `
             <div class="player-hand ${isWinner ? 'winner-hand' : ''}">
-                ${playerName}${winnerMark}: ${formatCardsText(player.cards)}
+                ${playerName}${winnerMark}: ${formatCardsText(player.cards)} (${handName})
             </div>
         `;
     }
@@ -2169,8 +2182,12 @@ function logShowdownDetails(playersInHand, winners, handName, totalWinAmounts) {
         return `${winnerName}: $${winAmount}`;
     }).join('<br>');
 
-    // Translate hand name
-    const translatedHandName = translateHandName(handName);
+    // Build winning hands list for each winner
+    const winningHandsList = winners.map(w => {
+        const winnerName = getTranslatedPlayerName(w);
+        const translatedHand = w.handResult ? translateHandName(w.handResult.name) : translateHandName(handName);
+        return `${winnerName}: ${translatedHand}`;
+    }).join('<br>');
 
     // Build winner names list
     const winnerNames = winners.map(w => getTranslatedPlayerName(w)).join(' & ');
@@ -2191,7 +2208,7 @@ function logShowdownDetails(playersInHand, winners, handName, totalWinAmounts) {
                 </div>
                 <div class="showdown-section winner-section">
                     <strong>${t('winnerLabel')}</strong> ${winnerNames}
-                    <br><strong>${t('winningHand')}</strong> ${translatedHandName}
+                    <br><strong>${t('winningHand')}</strong><br>${winningHandsList}
                     <br><strong>${t('best5Cards')}</strong><br>${winnersCardsInfo}
                     <br><strong>${t('prize')}</strong><br>${prizeInfo}
                 </div>
