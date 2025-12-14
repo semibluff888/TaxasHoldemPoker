@@ -345,7 +345,7 @@ body {
 /* ===== Table Title ===== */
 .table-title {
     position: absolute;
-    top: 16%;
+    top: 13%;
     left: 50%;
     transform: translateX(-50%);
     font-size: 2.2rem;
@@ -369,7 +369,7 @@ body {
     border-radius: 12px;
     padding: 6px 16px;
     position: absolute;
-    top: 32%;
+    top: 30%;
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 10;
@@ -500,7 +500,7 @@ body {
     gap: 10px;
     background: var(--glass-bg);
     backdrop-filter: blur(10px);
-    border: 1px solid var(--glass-border);
+    border: 2px solid var(--glass-border);
     border-radius: 50px;
     padding: 8px 15px;
     transition: all 0.3s ease;
@@ -836,29 +836,35 @@ body {
 }
 
 .player-top-left .dealer-chip {
-    bottom: -25px;
-    left: 50%;
-    transform: translateX(-50%);
+    top: 35%;
+    left: 100%;
+    right: auto;
+    bottom: auto;
+    margin-left: 0px;
+    transform: translateY(-50%);
 }
 
 .player-top-right .dealer-chip {
-    bottom: -25px;
-    left: 50%;
-    transform: translateX(-50%);
+    top: 35%;
+    right: 100%;
+    left: auto;
+    bottom: auto;
+    margin-right: 0px;
+    transform: translateY(-50%);
 }
 
 .player-bottom-left .dealer-chip {
     top: -25px;
-    left: auto;
-    right: -25px;
-    transform: none;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
 }
 
 .player-bottom-right .dealer-chip {
     top: -25px;
-    left: -25px;
+    left: 50%;
     right: auto;
-    transform: none;
+    transform: translateX(-50%);
 }
 
 .player-bottom .dealer-chip {
@@ -958,14 +964,14 @@ body {
     top: 100%;
     left: 50%;
     transform: translateX(-50%);
-    margin-top: 25px;
+    margin-top: 5px;
 }
 
 .player-top-right .player-bet {
     top: 100%;
     left: 50%;
     transform: translateX(-50%);
-    margin-top: 25px;
+    margin-top: 5px;
 }
 
 .player-bottom-left .player-bet {
@@ -973,7 +979,7 @@ body {
     left: auto;
     right: -30px;
     transform: none;
-    margin-bottom: 25px;
+    margin-bottom: 0px;
 }
 
 .player-bottom-right .player-bet {
@@ -981,7 +987,7 @@ body {
     left: -30px;
     right: auto;
     transform: none;
-    margin-bottom: 25px;
+    margin-bottom: 0px;
 }
 
 /* ===== Controls ===== */
@@ -1568,10 +1574,12 @@ body {
 }
 
 .player-bottom .hand-rank-badge {
-    bottom: -30px;
-    left: 50%;
-    transform: translateX(-50%);
-    animation: badgePopCentered 0.5s ease forwards;
+    top: 50%;
+    left: 100%;
+    bottom: auto;
+    margin-left: 10px;
+    transform: translateY(-50%);
+    animation: badgePop 0.5s ease forwards;
 }
 
 /* ===== Pot Animation ===== */
