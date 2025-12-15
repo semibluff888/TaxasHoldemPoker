@@ -552,6 +552,8 @@ const SoundManager = {
             const clone = audio.cloneNode();
             clone.volume = this.volume;
             clone.play().catch(() => { }); // Ignore autoplay errors
+            // Clean up clone after playback to prevent memory leak
+            clone.addEventListener('ended', () => clone.remove());
         }
     },
 
@@ -2806,8 +2808,8 @@ function createCursorParticle(x, y, moveX = 0, moveY = 0) {
         currentCursorEffect === 'comet' ? 600 : 800;
 
     setTimeout(() => {
-        particle.remove();
-        particleCount--;
+        if (particle.parentNode) particle.remove();
+        particleCount = Math.max(0, particleCount - 1); // Prevent negative drift
     }, duration);
 }
 
