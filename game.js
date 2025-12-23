@@ -1947,23 +1947,35 @@ function getHandBucket(card1, card2) {
 
 // Get player position relative to dealer
 function getPosition(playerId) {
-    const activePlayers = gameState.players.filter(p => !p.isRemoved && !p.folded);
-    const numActive = activePlayers.length;
+    // Get all seated players (not removed) - position is fixed at start of hand
+    const seatedPlayers = gameState.players.filter(p => !p.isRemoved);
+    const numSeated = seatedPlayers.length;
 
-    // Find position relative to dealer (0 = dealer, higher = earlier to act preflop)
-    let posFromDealer = (playerId - gameState.dealerIndex + gameState.players.length) % gameState.players.length;
+    // Find the dealer and target player indices within the seated players list
+    const dealerSeatedIndex = seatedPlayers.findIndex(p => p.id === gameState.dealerIndex);
+    const targetSeatedIndex = seatedPlayers.findIndex(p => p.id === playerId);
 
-    // Map to position categories
-    if (numActive <= 3) {
-        // Short-handed: only late and blinds
-        return posFromDealer <= 1 ? 'blinds' : 'late';
+    // Fallback if player or dealer not found
+    if (dealerSeatedIndex === -1 || targetSeatedIndex === -1) {
+        return 'late';
     }
 
-    // Full ring approximation
-    if (posFromDealer <= 1) return 'blinds';  // SB/BB
-    if (posFromDealer <= 2) return 'early';
-    if (posFromDealer <= 3) return 'middle';
-    return 'late'; // Button and cutoff
+    // Calculate position from dealer (0 = dealer, 1 = SB, 2 = BB, etc.)
+    let posFromDealer = (targetSeatedIndex - dealerSeatedIndex + numSeated) % numSeated;
+
+    // Map to position categories
+    if (numSeated <= 3) {
+        // Short-handed: dealer is late, others are blinds
+        if (posFromDealer === 0) return 'late';  // Dealer/Button
+        return 'blinds';  // SB/BB
+    }
+
+    // Full ring approximation (4+ players)
+    if (posFromDealer === 0) return 'late';   // Dealer/Button (best position)
+    if (posFromDealer <= 2) return 'blinds';  // SB (1) / BB (2)
+    if (posFromDealer === 3) return 'early';  // UTG (first to act preflop)
+    if (posFromDealer === 4) return 'middle'; // UTG+1 or Hijack
+    return 'late'; // Cutoff and beyond
 }
 
 // Check if hand should be played based on position
@@ -2154,7 +2166,7 @@ function preflopDecisionEnhanced(playerId) {
     const opponentProfile = getOpponentProfile(mainOpponent);
 
     // Position-based adjustments
-    const positionBonus = position === 'late' ? 0.1 : (position === 'blinds' ? 0.05 : 0);
+    const positionBonus = position === 'blinds' ? 0.15 : (position === 'late' ? 0.1 : (position === 'middle' ? 0.025 : 0));
 
     // Opponent-based adjustments
     const stealMore = opponentProfile.isTight ? 0.1 : 0;
@@ -2185,7 +2197,7 @@ function preflopDecisionEnhanced(playerId) {
             } else {
                 playerCheck(playerId);
             }
-        } else if (callAmount <= player.chips * 0.15) {
+        } else if (callAmount <= Math.max(player.chips * 0.15, BIG_BLIND)) {
             // Facing a bet - call or 3-bet
             if (random < 0.25) {
                 const raiseAmount = calculateBetAmount(BET_SIZES.POT, playerId);
@@ -2205,7 +2217,7 @@ function preflopDecisionEnhanced(playerId) {
                 playerFold(playerId);
             }
         }
-    } else if (bucket === 'speculative' && shouldPlayHand(bucket, position)) {
+    } else if (bucket === 'speculative') {
         // Speculative hands: play from late position, call small bets
         if (callAmount === 0) {
             if (random < 0.4 + positionBonus + stealMore) {
@@ -2218,18 +2230,31 @@ function preflopDecisionEnhanced(playerId) {
             } else {
                 playerCheck(playerId);
             }
-        } else if (callAmount <= player.chips * 0.08) {
-            if (random < 0.7) {
+        } else if (callAmount <= Math.max(player.chips * 0.08, BIG_BLIND)) {
+            // Small bet - mostly call
+            if (random < 0.85) {
+                playerCall(playerId);
+            } else {
+                playerFold(playerId);
+            }
+        } else if (callAmount <= Math.max(player.chips * 0.15, BIG_BLIND)) {
+            // Medium bet - call half the time
+            if (random < 0.5) {
                 playerCall(playerId);
             } else {
                 playerFold(playerId);
             }
         } else {
-            playerFold(playerId);
+            // Large bet - usually fold
+            if (random < 0.25) {
+                playerCall(playerId);
+            } else {
+                playerFold(playerId);
+            }
         }
-    } else if (bucket === 'weak' && position === 'late') {
-        // Weak hands: only steal from button
-        if (callAmount === 0 && random < 0.25 + stealMore) {
+    } else if (bucket === 'weak') {
+        // Weak hands: steal from button, call small bets
+        if (callAmount === 0 && random < 0.25 + stealMore && position === 'late') {
             const raiseAmount = calculateBetAmount(BET_SIZES.HALF, playerId);
             if (raiseAmount > gameState.currentBet) {
                 playerRaise(playerId, raiseAmount);
@@ -2238,6 +2263,20 @@ function preflopDecisionEnhanced(playerId) {
             }
         } else if (callAmount === 0) {
             playerCheck(playerId);
+        } else if (callAmount <= Math.max(player.chips * 0.05, BIG_BLIND)) {
+            // Very small bet - call half the time
+            if (random < 0.5) {
+                playerCall(playerId);
+            } else {
+                playerFold(playerId);
+            }
+        } else if (callAmount <= Math.max(player.chips * 0.1, BIG_BLIND)) {
+            // Small bet - call sometimes
+            if (random < 0.25) {
+                playerCall(playerId);
+            } else {
+                playerFold(playerId);
+            }
         } else {
             playerFold(playerId);
         }
@@ -2245,6 +2284,13 @@ function preflopDecisionEnhanced(playerId) {
         // Trash hands: fold (except free check)
         if (callAmount === 0) {
             playerCheck(playerId);
+        } else if (callAmount <= Math.max(player.chips * 0.03, BIG_BLIND)) {
+            // Tiny bet - occasionally call
+            if (random < 0.2) {
+                playerCall(playerId);
+            } else {
+                playerFold(playerId);
+            }
         } else {
             playerFold(playerId);
         }
