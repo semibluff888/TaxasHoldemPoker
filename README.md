@@ -8,6 +8,9 @@ A browser-based Texas Hold'em Poker game featuring an elegant SPY×FAMILY themed
 
 - **Full Texas Hold'em Gameplay**: Complete implementation of Texas Hold'em rules including all betting rounds (Pre-flop, Flop, Turn, River)
 - **4 AI Opponents**: Strategic AI players with SPY×FAMILY character portraits that randomize each game
+- **Advanced AI Personalities**: Adjustable difficulty levels (Easy, Medium, Hard) to suit your skill level
+- **Game Speed Control**: Toggle between Fast and Slow modes for your preferred pace
+- **Cursor Effects**: Interactive cursor trails (Sparkle, Comet, Bubble) for added visual flair
 - **Beautiful User Interface**: Modern design with:
   - Smooth card dealing animations with dealer GIF
   - Professional poker table layout with SPY×FAMILY theme
@@ -60,6 +63,7 @@ From highest to lowest:
 ### Prerequisites
 - A modern web browser (Chrome, Firefox, Safari, Edge)
 - No server or build process required!
+- **Note**: The game works best on desktop browsers.
 
 ### Installation
 1. Clone or download this repository
@@ -116,7 +120,8 @@ TexasHoldemPoker/
 - **AI Decision Making**: Dynamic AI with hand strength evaluation and betting strategy
 - **State Management**: Robust game state tracking across all betting phases
 - **Internationalization**: Full translation system with bilingual support
-- **Responsive Design**: Adapts to different screen sizes
+- **Responsiveness**: Adapts layout for different screen sizes and orientations
+- **Local Storage**: Persists your preferences (Game Mode, Language, Cursor Effect, Stats toggle)
 
 ## 🎲 How to Play
 
@@ -129,6 +134,11 @@ TexasHoldemPoker/
 7. **Continue Playing**: The next hand starts automatically after each round
 8. **Language Toggle**: Click the language button (中文/EN) to switch languages
 9. **Sound Controls**: Use the music and sound effect buttons in the header
+10. **Game Configuration**:
+    - **Difficulty**: Click on an AI player's portrait to toggle their difficulty (Easy/Medium/Hard)
+    - **Speed**: Click the "FAST/SLOW" button to change game speed
+    - **Cursor**: Select your preferred cursor effect from the dropdown
+    - **Stats**: Toggle detailed player statistics display
 
 ## 🤖 AI Behavior
 
@@ -138,6 +148,10 @@ The AI opponents use a strategy-based decision-making system:
 - **Bluffing**: Occasionally raises with medium-strength hands
 - **Fold Logic**: Folds weak hands when facing raises
 - **All-In Strategy**: Goes all-in with very strong hands
+- **Difficulty Levels**:
+    - **Easy**: Plays more passively, folds often to aggression
+    - **Medium**: Balanced approach, makes reasonable bets, calculates odds, Opponent-based adjustments, occasionally bluffs
+    - **Hard**: TBD, currently same as Medium
 
 ## 📊 Game Configuration
 

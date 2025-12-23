@@ -743,10 +743,10 @@ function initPlayers() {
 
     gameState.players = [
         { id: 0, name: 'You', chips: STARTING_CHIPS, cards: [], bet: 0, totalContribution: 0, folded: false, isAI: false, allIn: false, isRemoved: false, isPendingJoin: false, stats: { ...defaultStats } },
-        { id: 1, name: 'AI Player 1', chips: STARTING_CHIPS, cards: [], bet: 0, totalContribution: 0, folded: false, isAI: true, allIn: false, aiLevel: 'easy', isRemoved: false, isPendingJoin: false, stats: { ...defaultStats } },
-        { id: 2, name: 'AI Player 2', chips: STARTING_CHIPS, cards: [], bet: 0, totalContribution: 0, folded: false, isAI: true, allIn: false, aiLevel: 'easy', isRemoved: false, isPendingJoin: false, stats: { ...defaultStats } },
-        { id: 3, name: 'AI Player 3', chips: STARTING_CHIPS, cards: [], bet: 0, totalContribution: 0, folded: false, isAI: true, allIn: false, aiLevel: 'easy', isRemoved: false, isPendingJoin: false, stats: { ...defaultStats } },
-        { id: 4, name: 'AI Player 4', chips: STARTING_CHIPS, cards: [], bet: 0, totalContribution: 0, folded: false, isAI: true, allIn: false, aiLevel: 'easy', isRemoved: false, isPendingJoin: false, stats: { ...defaultStats } }
+        { id: 1, name: 'AI Player 1', chips: STARTING_CHIPS, cards: [], bet: 0, totalContribution: 0, folded: false, isAI: true, allIn: false, aiLevel: 'medium', isRemoved: false, isPendingJoin: false, stats: { ...defaultStats } },
+        { id: 2, name: 'AI Player 2', chips: STARTING_CHIPS, cards: [], bet: 0, totalContribution: 0, folded: false, isAI: true, allIn: false, aiLevel: 'medium', isRemoved: false, isPendingJoin: false, stats: { ...defaultStats } },
+        { id: 3, name: 'AI Player 3', chips: STARTING_CHIPS, cards: [], bet: 0, totalContribution: 0, folded: false, isAI: true, allIn: false, aiLevel: 'medium', isRemoved: false, isPendingJoin: false, stats: { ...defaultStats } },
+        { id: 4, name: 'AI Player 4', chips: STARTING_CHIPS, cards: [], bet: 0, totalContribution: 0, folded: false, isAI: true, allIn: false, aiLevel: 'medium', isRemoved: false, isPendingJoin: false, stats: { ...defaultStats } }
     ];
 }
 
@@ -1184,14 +1184,14 @@ function appendToCurrentHandHistory(entryHTML) {
     }
 }
 
-function showMessage(message) {
+function showMessage(message, phaseOverride = null) {
     if (!message) return;
 
     const now = new Date();
     const time = now.toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric", second: "numeric" });
 
     // Translate phase name
-    const phaseKey = gameState.phase === 'idle' ? 'start' : gameState.phase;
+    const phaseKey = phaseOverride || (gameState.phase === 'idle' ? 'start' : gameState.phase);
     const phase = t(phaseKey) || phaseKey.toUpperCase();
 
     const entryHTML = `
@@ -2989,7 +2989,8 @@ async function showdown(thisGameId) {
             .replace('{pot}', t('mainPot') || 'Main Pot')
             .replace('{winner}', getTranslatedPlayerName(winner))
             .replace('{amount}', winAmount)
-            .replace('{hand}', t('everyoneFolded')));
+            .replace('{hand}', t('everyoneFolded')),
+            'everyoneFolded');
 
         // Log fold win details in showdown style
         logFoldWinDetails(winner, winAmount);
