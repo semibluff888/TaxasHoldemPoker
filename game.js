@@ -916,6 +916,13 @@ function animateCardFromDealer(cardElement) {
 
     // Re-add animation class to trigger animation
     cardElement.classList.add('dealing');
+
+    // Remove 'dealing' class after animation ends to enable hover effects
+    // (CSS animations with 'forwards' fill mode take precedence over :hover transforms)
+    cardElement.addEventListener('animationend', function handleAnimationEnd() {
+        cardElement.classList.remove('dealing');
+        cardElement.removeEventListener('animationend', handleAnimationEnd);
+    });
 }
 
 function updatePlayerCards(playerId, isHidden = false) {
@@ -3136,6 +3143,11 @@ async function showdown(thisGameId) {
             showWinAnimation();
         }
 
+        // Show joy animation if AI player wins by fold (50% chance)
+        if (winner.isAI && Math.random() < 0.5) {
+            showAIEmotionGif(winner.id, 'joy.gif');
+        }
+
         // Reveal winner's cards
         updatePlayerCards(winner.id, false);
 
@@ -3246,6 +3258,13 @@ async function showdown(thisGameId) {
 
         // Check if game was cancelled after animation
         if (currentGameId !== thisGameId) return;
+
+        // Show cry animation for AI players who lost and have 0 chips
+        for (const player of playersInHand) {
+            if (player.isAI && player.chips === 0 && !allWinners.some(w => w.id === player.id)) {
+                showAIEmotionGif(player.id, 'cry.gif');
+            }
+        }
     }
 
     // Finalize showdown - update chips display and start next game
@@ -3460,7 +3479,49 @@ function highlightWinners(winners) {
         if (winner.handResult && winner.handResult.bestCards && winner.handResult.bestCards.length > 0) {
             highlightWinningCards(winner);
         }
+
+        // Show emotion animation for AI winners based on hand strength
+        if (winner.isAI && winner.handResult) {
+            const handName = winner.handResult.name;
+            const betterThanStraight = ['Flush', 'Full House', 'Four of a Kind', 'Straight Flush', 'Royal Flush'];
+
+            if (handName === 'High Card') {
+                showAIEmotionGif(winner.id, 'sweat.gif');
+            } else if (betterThanStraight.includes(handName)) {
+                showAIEmotionGif(winner.id, 'star.gif');
+            } else {
+                // 30% chance to show grin for normal wins
+                if (Math.random() < 0.3) {
+                    showAIEmotionGif(winner.id, 'grin.gif');
+                }
+            }
+        }
     }
+}
+
+// Show emotion gif animation for AI player
+function showAIEmotionGif(playerId, gifName = 'grin.gif') {
+    const playerEl = document.getElementById(`player-${playerId}`);
+    if (!playerEl) return;
+
+    // Remove any existing emotion gif for this player
+    const existingGif = document.getElementById(`emotion-${playerId}`);
+    if (existingGif) existingGif.remove();
+
+    // Create emotion gif element
+    const emotionGif = document.createElement('img');
+    emotionGif.src = `pic/${gifName}?` + Date.now(); // Cache-bust to restart animation
+    emotionGif.className = 'ai-winner-grin';
+    emotionGif.id = `emotion-${playerId}`;
+
+    // Append to player element
+    playerEl.appendChild(emotionGif);
+
+    // Remove after animation (approximately 1.5 seconds)
+    setTimeout(() => {
+        const gif = document.getElementById(`emotion-${playerId}`);
+        if (gif) gif.remove();
+    }, 1500);
 }
 
 // Show win animation for human player
