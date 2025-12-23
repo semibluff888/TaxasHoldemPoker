@@ -504,6 +504,7 @@ body {
     border-radius: 50px;
     padding: 8px 15px;
     transition: all 0.3s ease;
+    min-width: 130px;
 }
 
 /* Slow mode: Silver glow animation */
@@ -1064,7 +1065,7 @@ body {
 .player-bottom .player-bet {
     bottom: 100%;
     left: auto;
-    right: -40px;
+    right: -80px;
     transform: none;
     margin-bottom: 5px;
 }
@@ -1596,6 +1597,45 @@ body {
         0 0 40px rgba(255, 215, 0, 0.4) !important;
     transform: translateY(-8px) scale(1.05) !important;
     z-index: 10;
+}
+
+/* AI Winner Grin Animation */
+.ai-winner-grin {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+    z-index: 200;
+    pointer-events: none;
+    animation: grinBounce 0.5s ease-out;
+}
+
+/* Position grin at top left of portrait for all AI players */
+.player-top .ai-winner-grin,
+.player-left .ai-winner-grin,
+.player-right .ai-winner-grin,
+.player-top-left .ai-winner-grin,
+.player-top-right .ai-winner-grin,
+.player-bottom-left .ai-winner-grin,
+.player-bottom-right .ai-winner-grin {
+    top: -40px;
+    left: -20px;
+}
+
+@keyframes grinBounce {
+    0% {
+        transform: scale(0) rotate(-20deg);
+        opacity: 0;
+    }
+
+    50% {
+        transform: scale(1.2) rotate(10deg);
+    }
+
+    100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
 }
 
 /* ===== Hand Rank Badge ===== */
