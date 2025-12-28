@@ -578,6 +578,7 @@ const SoundManager = {
     musicEnabled: true,
     sfxEnabled: true,
     volume: 0.5,
+    audioUnlocked: false, // Track if audio has been unlocked by user interaction
 
     // Initialize the sound manager
     init() {
@@ -585,15 +586,68 @@ const SoundManager = {
         for (const [name, url] of Object.entries(this.sounds)) {
             this.audioCache[name] = new Audio(url);
             this.audioCache[name].volume = this.volume;
+            // Preload the audio
+            this.audioCache[name].load();
         }
 
         // Setup background music
         this.musicElement = new Audio(this.musicUrl);
         this.musicElement.loop = true;
         this.musicElement.volume = this.volume * 0.5; // Music volume factor
+        this.musicElement.load();
 
         // Setup UI controls
         this.setupControls();
+
+        // Setup audio unlock on first user interaction (critical for Safari/iOS)
+        this.setupAudioUnlock();
+    },
+
+    // Setup audio unlock for Safari/iOS
+    // Safari requires user interaction before any audio can play
+    setupAudioUnlock() {
+        const unlockAudio = () => {
+            if (this.audioUnlocked) return;
+
+            // Try to play and immediately pause all audio to "unlock" them
+            const unlockPromises = [];
+
+            // Unlock all cached sound effects
+            for (const audio of Object.values(this.audioCache)) {
+                audio.muted = true;
+                const promise = audio.play().then(() => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                    audio.muted = false;
+                }).catch(() => { });
+                unlockPromises.push(promise);
+            }
+
+            // Unlock music element
+            if (this.musicElement) {
+                this.musicElement.muted = true;
+                const promise = this.musicElement.play().then(() => {
+                    this.musicElement.pause();
+                    this.musicElement.currentTime = 0;
+                    this.musicElement.muted = false;
+                }).catch(() => { });
+                unlockPromises.push(promise);
+            }
+
+            Promise.all(unlockPromises).then(() => {
+                this.audioUnlocked = true;
+                console.log('Audio unlocked successfully');
+            });
+        };
+
+        // Listen for various user interaction events
+        const events = ['click', 'touchstart', 'keydown'];
+        const unlockHandler = () => {
+            unlockAudio();
+            // Remove listeners after first interaction
+            events.forEach(e => document.removeEventListener(e, unlockHandler));
+        };
+        events.forEach(e => document.addEventListener(e, unlockHandler, { once: true }));
     },
 
     // Setup UI control event listeners
@@ -688,10 +742,21 @@ const SoundManager = {
     playMusic() {
         if (!this.musicEnabled || !this.musicElement) return;
 
-        this.musicElement.play().catch(() => {
-            // Autoplay blocked - will try again on next user interaction
-            console.log('Music autoplay blocked - click to enable');
-        });
+        // Ensure audio element is ready
+        if (this.musicElement.readyState < 2) {
+            // Audio not ready yet, wait for it
+            this.musicElement.addEventListener('canplaythrough', () => {
+                this.musicElement.play().catch((err) => {
+                    console.log('Music play failed:', err.message);
+                });
+            }, { once: true });
+            this.musicElement.load();
+        } else {
+            this.musicElement.play().catch((err) => {
+                // Autoplay blocked - will work after user interaction
+                console.log('Music autoplay blocked:', err.message);
+            });
+        }
     },
 
     // Stop background music (fully stops and resets - used for game over, etc.)
