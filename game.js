@@ -4100,9 +4100,50 @@ function showGameElements() {
     }
 }
 
+// ===== Online User Count =====
+function initOnlineCount() {
+    const userIdKey = 'poker_online_user_id';
+    let userId = localStorage.getItem(userIdKey);
+    if (!userId) {
+        userId = 'user_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem(userIdKey, userId);
+    }
+
+    const updateCount = async () => {
+        try {
+            const response = await fetch('/api/heartbeat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const countEl = document.getElementById('online-count');
+                if (countEl && data.count) {
+                    countEl.textContent = `🟢 ${data.count}`;
+                }
+            }
+        } catch (e) {
+            // Quietly fail for local dev (no API)
+            const countEl = document.getElementById('online-count');
+            if (countEl && countEl.textContent.trim() === '🟢 1') {
+                // Keep default
+            }
+        }
+    };
+
+    // Update immediately
+    updateCount();
+
+    // Poll every 15 seconds
+    setInterval(updateCount, 15000);
+}
+
 // Initialize
 initPlayers();
 SoundManager.init();
+initOnlineCount();
 hideGameElements(); // Hide player elements initially
 updateUI();
 updateLanguageUI(); // Apply saved language preference
