@@ -200,7 +200,10 @@ const TRANSLATIONS = {
         stats3Bet: '3-Bet',
         statsCBet: 'C-Bet',
         statsFoldToCBet: 'Fold to CBet',
-        statsShowdown: 'Showdown'
+        statsShowdown: 'Showdown',
+
+        // Online Count
+        onlineUsers: 'Online Users'
     },
     zh: {
         // Header & Buttons
@@ -342,7 +345,10 @@ const TRANSLATIONS = {
         stats3Bet: '3-Bet',
         statsCBet: 'C-Bet',
         statsFoldToCBet: 'C-Bet弃牌率',
-        statsShowdown: '摊牌率'
+        statsShowdown: '摊牌率',
+
+        // Online Count
+        onlineUsers: '在线人数'
     }
 };
 
@@ -514,6 +520,12 @@ function updateLanguageUI() {
     // Update hand rank name display (for best hand highlight)
     clearHighlightHumanBestHand();
     highlightHumanBestHand();
+
+    // Update online count text
+    const onlineCountEl = document.getElementById('online-count');
+    if (onlineCountEl && onlineCountEl.dataset.count) {
+        onlineCountEl.textContent = `🟢 ${t('onlineUsers')}: ${onlineCountEl.dataset.count}`;
+    }
 }
 
 // Update hand number display with translation
@@ -4121,14 +4133,16 @@ function initOnlineCount() {
                 const data = await response.json();
                 const countEl = document.getElementById('online-count');
                 if (countEl && data.count) {
-                    countEl.textContent = `🟢 ${data.count}`;
+                    countEl.dataset.count = data.count; // Store count for translation updates
+                    countEl.textContent = `🟢 ${t('onlineUsers')}: ${data.count}`;
                 }
             }
         } catch (e) {
             // Quietly fail for local dev (no API)
             const countEl = document.getElementById('online-count');
-            if (countEl && countEl.textContent.trim() === '🟢 1') {
-                // Keep default
+            if (countEl && !countEl.dataset.count) {
+                countEl.dataset.count = 1;
+                countEl.textContent = `🟢 ${t('onlineUsers')}: 1`;
             }
         }
     };
